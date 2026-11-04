@@ -7,22 +7,32 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Original app colors (colors.xml on main): colorPrimary #2D647D,
+ * colorAccent #46a0c6. The old theme was DayNight, so the buttons stay
+ * teal in both light and dark mode.
+ */
+private val TealPrimary = Color(0xFF2D647D)
+private val TealAccent = Color(0xFF46A0C6)
+
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF0061A4),
+    primary = TealPrimary,
     onPrimary = Color.White,
-    secondary = Color(0xFF535F70),
-    background = Color(0xFFFBFCFE),
+    secondary = TealAccent,
+    onSecondary = Color.White,
+    background = Color.White,
     surface = Color.White,
-    onSurface = Color(0xFF1A1C1E)
+    onSurface = Color.Black
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF9CCAFF),
-    onPrimary = Color(0xFF003352),
-    secondary = Color(0xFFBBC7DB),
-    background = Color(0xFF1A1C1E),
-    surface = Color(0xFF1A1C1E),
-    onSurface = Color(0xFFE2E2E6)
+    primary = TealPrimary,
+    onPrimary = Color.White,
+    secondary = TealAccent,
+    onSecondary = Color.White,
+    background = Color(0xFF121212),
+    surface = Color(0xFF121212),
+    onSurface = Color.White
 )
 
 @Composable

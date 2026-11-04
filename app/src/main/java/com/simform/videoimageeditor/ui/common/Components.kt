@@ -19,12 +19,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -44,7 +47,12 @@ fun OperationScaffold(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { padding ->
@@ -60,6 +68,10 @@ fun OperationScaffold(
     }
 }
 
+/**
+ * As the original operation layouts: label on the left, filled teal
+ * Upload button on the right, path/size text below.
+ */
 @Composable
 fun PickFileRow(
     label: String,
@@ -67,16 +79,22 @@ fun PickFileRow(
     buttonText: String,
     onPick: () -> Unit
 ) {
-    Text(label, style = MaterialTheme.typography.labelLarge)
-    Text(path ?: "", style = MaterialTheme.typography.bodyMedium)
-    OutlinedButton(onClick = onPick, modifier = Modifier.fillMaxWidth()) {
-        Text(buttonText)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Button(onClick = onPick) {
+            Text(buttonText)
+        }
     }
+    Text(path ?: "", style = MaterialTheme.typography.bodyMedium)
 }
 
 @Composable
 fun TimeField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
@@ -88,7 +106,7 @@ fun TimeField(label: String, value: String, onValueChange: (String) -> Unit) {
 
 @Composable
 fun NumberField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = { if (it.all { c -> c.isDigit() }) onValueChange(it) },
         label = { Text(label) },
@@ -100,7 +118,7 @@ fun NumberField(label: String, value: String, onValueChange: (String) -> Unit) {
 
 @Composable
 fun TextField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
@@ -117,17 +135,20 @@ fun RunControls(
     onRun: () -> Unit,
     onCancel: () -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    // As the original screens: one full-width teal run button. Cancel only
+    // shows while a run is in progress, so the idle screen matches the old one.
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = onRun,
             enabled = canRun && !running,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxWidth()
         ) { Text(runLabel) }
-        OutlinedButton(
-            onClick = onCancel,
-            enabled = running,
-            modifier = Modifier.weight(1f)
-        ) { Text("Cancel") }
+        if (running) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Cancel") }
+        }
     }
 }
 
