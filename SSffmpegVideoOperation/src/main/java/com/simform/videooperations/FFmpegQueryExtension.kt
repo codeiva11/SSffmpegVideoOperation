@@ -208,21 +208,31 @@ public class FFmpegQueryExtension {
     }
 
     /**
-     * H.265 (HEVC) compression, Sunil's command:
-     * `ffmpeg -i input.mp4 -c:v libx265 -crf 28 output.mp4`.
+     * H.265 (HEVC) compression, Sunil's three commands:
+     * `-c:v libx265 -crf 28` (Fast, preset Auto),
+     * `-preset slower -crf 26` (Balanced),
+     * `-preset slow -crf 24` (Best, default).
      *
      * Preset "Auto": x265 has NO preset named "auto" (valid presets are
      * ultrafast..placebo, FFmpeg Wiki H.265 guide) and its DEFAULT preset
      * is medium — so Auto means the `-preset` flag is not passed at all
-     * and x265 uses medium.
+     * and x265 uses medium. Slower presets squeeze smaller files out of
+     * the same CRF, at the cost of longer encode time on the phone.
      *
-     * Input may be any video format / container and any audio codec:
-     * FFmpeg detects the format automatically from the file itself, video
-     * goes to libx265, and audio is re-encoded to AAC at a HIGHER bitrate
+     * `-tag:v hvc1` on every output: FFmpeg otherwise writes the HEVC
+     * tag as hev1 in MP4, which Apple players (iOS/macOS/QuickTime)
+     * refuse — hvc1 is the tag they accept.
+     *
+     * Audio is NOT the fixed 96k/128k from those commands: a fixed
+     * bitrate would be WORSE than the input for high-bitrate sources
+     * (e.g. 192k in -> 96k out). Audio stays AAC at a HIGHER bitrate
      * than the input audio (input + 64k, capped at 320k), so the output
      * always carries H.265 video together with better-quality AAC audio.
      * When the input audio bitrate cannot be probed, or the input has no
      * audio stream, 192k is used. Video keeps its original frame rate.
+     *
+     * Input may be any video format / container and any audio codec:
+     * FFmpeg detects the format automatically from the file itself.
      *
      * NOTE: probing runs FFprobeKit, which blocks — callers must build
      * this query off the main thread.
@@ -238,7 +248,8 @@ public class FFmpegQueryExtension {
         val args = mutableListOf(
             "-y", "-i", inputVideo,
             "-c:v", "libx265",
-            "-crf", crf.toString()
+            "-crf", crf.toString(),
+            "-tag:v", "hvc1"
         )
         if (!preset.equals("auto", ignoreCase = true)) {
             args.add("-preset")

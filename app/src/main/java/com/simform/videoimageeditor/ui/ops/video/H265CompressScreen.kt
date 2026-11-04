@@ -33,14 +33,21 @@ import java.io.File
 /**
  * H.265 (HEVC) compression: the smallest size at the best quality.
  * libx265 at CRF 28 holds roughly H.264 CRF 23 quality at about half
- * the file size. Preset is Auto for all qualities: x265 has no preset
- * named "auto", its default is medium, so no -preset flag is passed.
+ * the file size. Three profiles, from Sunil's three commands:
+ * Best (CRF 24, Slow), Balanced (CRF 26, Slower), Fast (CRF 28,
+ * Auto — x265 has no preset named "auto", its default is medium, so
+ * no -preset flag is passed). Slower presets make smaller files at
+ * the same quality but take longer to encode on the phone.
  * Audio is AAC at a higher bitrate than the input (input + 64k, max
- * 320k), probed automatically. Default is Best (CRF 24, Auto).
+ * 320k), probed automatically — NOT the fixed 96k/128k from those
+ * commands, which would be worse than the input for high-bitrate
+ * sources. Every output carries -tag:v hvc1 (Apple players need it).
+ * Default is Best (CRF 24, Slow).
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
-    BEST(24, "auto", "Best quality (CRF 24)"),
-    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28)")
+    BEST(24, "slow", "Best quality (CRF 24, Slow)"),
+    BALANCED(26, "slower", "Balanced (CRF 26, Slower)"),
+    FAST(28, "auto", "Fast (CRF 28, Auto)")
 }
 
 data class H265CompressState(
@@ -136,7 +143,9 @@ fun H265CompressScreen(
             "Any video file works as input — FFmpeg detects the format " +
                 "automatically. Output is H.265 video with AAC audio at a " +
                 "higher bitrate than the input (input + 64k, max 320k), at " +
-                "about half the size of H.264. Preset Auto.",
+                "about half the size of H.264. Preset: Best = Slow, " +
+                "Balanced = Slower, Fast = Auto (slower presets = smaller " +
+                "files, longer encode).",
             style = MaterialTheme.typography.bodySmall
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
