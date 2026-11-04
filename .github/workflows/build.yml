@@ -17,14 +17,6 @@ jobs:
           java-version: 17
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
-      - name: Debug Maven Central reachability
-        run: |
-          echo "--- ffmpeg-kit-full 6.0.LTS POM ---"
-          curl -sI https://repo.maven.apache.org/maven2/com/arthenica/ffmpeg-kit-full/6.0.LTS/ffmpeg-kit-full-6.0.LTS.pom | head -n 3
-          echo "--- ffmpeg-kit-full maven-metadata ---"
-          curl -s https://repo.maven.apache.org/maven2/com/arthenica/ffmpeg-kit-full/maven-metadata.xml | head -n 12
-          echo "--- control: core-ktx POM ---"
-          curl -sI https://repo.maven.apache.org/maven2/androidx/core/core-ktx/1.13.1/core-ktx-1.13.1.pom | head -n 3
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
       - name: Upload APK
