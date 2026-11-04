@@ -2,7 +2,6 @@ package com.simform.videooperations
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.ReturnCode
@@ -41,7 +40,7 @@ class CallBackOfQuery {
     private fun process(query: Array<String>, ffmpegCallBack: FFmpegCallBack) {
         val processHandler = Handler(Looper.getMainLooper())
         FFmpegKitConfig.enableLogCallback { logMessage ->
-            val logs = LogMessage(logMessage.executionId, logMessage.level, logMessage.message)
+            val logs = LogMessage(logMessage.sessionId, logMessage.level, logMessage.message)
             processHandler.post {
                 ffmpegCallBack.process(logs)
             }
@@ -49,7 +48,7 @@ class CallBackOfQuery {
         FFmpegKitConfig.enableStatisticsCallback { statistics ->
             val statisticsLog =
                 Statistics(
-                    statistics.executionId,
+                    statistics.sessionId,
                     statistics.videoFrameNumber,
                     statistics.videoFps,
                     statistics.videoQuality,
@@ -62,7 +61,7 @@ class CallBackOfQuery {
                 ffmpegCallBack.statisticsProcess(statisticsLog)
             }
         }
-        val session = FFmpegKit.execute(query)
+        val session = FFmpegKit.executeWithArguments(query)
         when {
             ReturnCode.isSuccess(session.returnCode) -> {
                 processHandler.post {
@@ -78,7 +77,6 @@ class CallBackOfQuery {
             else -> {
                 processHandler.post {
                     ffmpegCallBack.failed()
-                    FFmpegKitConfig.printLastCommandOutput(Log.INFO)
                 }
             }
         }
