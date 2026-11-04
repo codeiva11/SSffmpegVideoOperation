@@ -32,13 +32,15 @@ import java.io.File
 
 /**
  * H.265 (HEVC) compression: the smallest size at the best quality.
- * libx265 at CRF 28 + preset slow holds roughly H.264 CRF 23 quality at
- * about half the file size. Default is Balanced (CRF 28, slow).
+ * libx265 at CRF 28 holds roughly H.264 CRF 23 quality at about half
+ * the file size. Preset is Auto for all qualities: x265 has no preset
+ * named "auto", its default is medium, so no -preset flag is passed.
+ * Default is Balanced (CRF 28, Auto).
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
-    BEST(24, "slow", "Best quality (CRF 24)"),
-    BALANCED(28, "slow", "Balanced — small size, best quality (CRF 28)"),
-    SMALLEST(32, "medium", "Smallest size (CRF 32)")
+    BEST(24, "auto", "Best quality (CRF 24, Auto)"),
+    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28, Auto)"),
+    SMALLEST(32, "auto", "Smallest size (CRF 32, Auto)")
 }
 
 data class H265CompressState(

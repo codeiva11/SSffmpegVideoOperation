@@ -205,30 +205,37 @@ public class FFmpegQueryExtension {
     }
 
     /**
-     * Best H.265 (HEVC) compression: smallest size at the best quality.
-     * libx265 (GPL build) at CRF 28 + preset slow gives roughly the quality of
-     * H.264 CRF 23 at about half the file size. Audio is re-encoded to AAC
-     * 128k so any input container works; video keeps its original frame rate.
-     * `-tag:v hvc1` keeps the file playable on Apple devices, `+faststart`
-     * moves the index to the front so playback starts without waiting.
+     * H.265 (HEVC) compression, exactly Sunil's command:
+     * `ffmpeg -i input.mp4 -c:v libx265 -crf 28 -preset auto -c:a aac
+     * -b:a 128k output.mp4`.
+     *
+     * Preset "Auto": x265 has NO preset named "auto" (valid presets are
+     * ultrafast..placebo, FFmpeg Wiki H.265 guide) and its DEFAULT preset
+     * is medium — so Auto means the `-preset` flag is not passed at all
+     * and x265 uses medium. Audio is re-encoded to AAC 128k so any input
+     * container works; video keeps its original frame rate.
      */
     fun compressH265(
         inputVideo: String,
         output: String,
         crf: Int = 28,
-        preset: String = "slow"
+        preset: String = "auto"
     ): Array<String> {
-        return arrayOf(
+        val args = mutableListOf(
             "-y", "-i", inputVideo,
             "-c:v", "libx265",
-            "-crf", crf.toString(),
-            "-preset", preset,
-            "-pix_fmt", "yuv420p",
-            "-tag:v", "hvc1",
-            "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "128k",
-            output
+            "-crf", crf.toString()
         )
+        if (!preset.equals("auto", ignoreCase = true)) {
+            args.add("-preset")
+            args.add(preset)
+        }
+        args.add("-c:a")
+        args.add("aac")
+        args.add("-b:a")
+        args.add("128k")
+        args.add(output)
+        return args.toTypedArray()
     }
 
     fun extractImages(inputVideo: String, output: String, spaceOfFrame: Float): Array<String> {
