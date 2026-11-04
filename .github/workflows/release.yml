@@ -33,3 +33,10 @@ jobs:
         with:
           name: app-release-signed
           path: app/build/outputs/apk/release/app-release.apk
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v2.0.0-${{ github.run_number }}"
+          NOTES="Signed release APK — Compose + MVI migration (all 25 operation screens), H.265 (HEVC) compression via libx265, outputs saved to the public 'Ffmpeg Output' folder on phone storage. Note: the FFmpeg engine is ffmpeg-kit-full-gpl (libx265 is GPL-only), so this build is GPL-licensed."
+          gh release create "$TAG" app/build/outputs/apk/release/app-release.apk --title "$TAG" --notes "$NOTES" || gh release upload "$TAG" app/build/outputs/apk/release/app-release.apk --clobber
