@@ -70,4 +70,8 @@ dependencies {
     implementation 'io.coil-kt.coil3:coil-compose:3.0.4'
     implementation 'io.coil-kt.coil3:coil-gif:3.0.4'
     implementation project(':SSffmpegVideoOperation')
+    // EncodeService calls FFmpegKit.cancel() directly for its notification
+    // Cancel action. The library declares ffmpeg-kit as implementation
+    // (not visible here), so the app needs the same dependency itself.
+    implementation 'com.arthenica:ffmpeg-kit-full-gpl:6.0.LTS'
 }
