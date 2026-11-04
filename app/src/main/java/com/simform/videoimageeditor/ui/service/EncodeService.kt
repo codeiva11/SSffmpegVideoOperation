@@ -26,6 +26,9 @@ import com.simform.videoimageeditor.R
  * so it covers every operation screen, stopped on success / failure /
  * cancel. START_NOT_STICKY: if the system kills it, the encode is gone
  * and the user re-runs it — no silent restart.
+ *
+ * Type is dataSync (not mediaProcessing: this toolchain's AAPT does not
+ * know that value yet and rejects the manifest).
  */
 class EncodeService : Service() {
 
@@ -38,7 +41,7 @@ class EncodeService : Service() {
                     startForeground(
                         NOTIFICATION_ID,
                         buildNotification(label),
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                     )
                 } else {
                     startForeground(NOTIFICATION_ID, buildNotification(label))

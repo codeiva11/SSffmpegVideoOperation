@@ -12,7 +12,7 @@
     <!-- Background encoding: a foreground service keeps the FFmpeg
          operation alive when the app is minimised. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -32,7 +32,7 @@
         </activity>
         <service
             android:name=".ui.service.EncodeService"
-            android:foregroundServiceType="mediaProcessing"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
