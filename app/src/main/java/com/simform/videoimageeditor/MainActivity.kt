@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.simform.videoimageeditor.ui.navigation.AppNavHost
+import com.simform.videoimageeditor.ui.service.EncodeService
 import com.simform.videoimageeditor.ui.storage.OUTPUT_FOLDER_NAME
 import com.simform.videoimageeditor.ui.storage.ensureOutputFolder
 import com.simform.videoimageeditor.ui.storage.hasStorageAccess
@@ -58,6 +59,9 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Lets the operation ViewModels start the background-encode
+        // foreground service without holding an Activity reference.
+        EncodeService.init(applicationContext)
         setContent {
             VideoOperationsTheme {
                 Surface(

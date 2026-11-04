@@ -100,7 +100,8 @@ class H265CompressViewModel :
                         onLog = { onEvent(H265CompressEvent.LogReceived(it.text)) },
                         onSuccess = { onEvent(H265CompressEvent.Succeeded) },
                         onCancel = { setState { copy(isRunning = false) } },
-                        onFailed = { onEvent(H265CompressEvent.Failed) }
+                        onFailed = { onEvent(H265CompressEvent.Failed) },
+                        label = "Compressing video (H.265)"
                     )
                 }.start()
             }

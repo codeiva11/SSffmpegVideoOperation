@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- In-app updater: checks GitHub releases and installs the new APK. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Background encoding: a foreground service keeps the FFmpeg
+         operation alive when the app is minimised. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -26,6 +30,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".ui.service.EncodeService"
+            android:foregroundServiceType="mediaProcessing"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
