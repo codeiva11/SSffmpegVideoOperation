@@ -16,8 +16,25 @@ android {
         versionName "2.0.0"
     }
 
+    // Release signing: the keystore lives in GitHub Actions secrets
+    // (SSF_RELEASE_KEYSTORE_BASE64 / _PASSWORD / _ALIAS / _PASSWORD) and is
+    // decoded to release.keystore by the release workflow. The config is
+    // only wired when the env vars exist, so plain debug builds keep
+    // working without them.
+    signingConfigs {
+        release {
+            if (System.getenv("KEYSTORE_FILE")) {
+                storeFile file(System.getenv("KEYSTORE_FILE"))
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
