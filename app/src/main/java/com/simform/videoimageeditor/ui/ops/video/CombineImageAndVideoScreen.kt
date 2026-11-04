@@ -35,6 +35,8 @@ import com.simform.videooperations.Paths
  */
 data class CombineImageAndVideoState(
     val items: List<Paths> = emptyList(),
+    val width: Int? = null,
+    val height: Int? = null,
     val seconds: String = "",
     val outputPath: String? = null,
     val log: String = "",
