@@ -47,9 +47,10 @@ class FilePicker internal constructor(
     )
 
     /**
-     * Any video file, any format (mp4/mkv/avi/mov/webm/...): the system file
-     * picker with video/*, not the photo picker which only lists
-     * media-store videos.
+     * Any video file, any format (mp4/mkv/avi/mov/webm/...): the system
+     * file picker, not the photo picker which only lists media-store
+     * videos. (Note: the MIME type is written as a string literal below,
+     * never inside a comment — Kotlin block comments nest.)
      */
     fun pickAnyVideo() = pickSingleVideoFile.launch("video/*")
 

@@ -48,6 +48,9 @@ android {
     }
     buildFeatures {
         compose true
+        // AppUpdater reads BuildConfig.VERSION_CODE to compare against
+        // the latest release tag.
+        buildConfig true
     }
 }
 
