@@ -20,16 +20,36 @@ import com.simform.videoimageeditor.ui.navigation.Routes
 
 private data class MenuItem(@StringRes val titleRes: Int, val route: String)
 
-/**
- * Video operations menu. Rows are added here as each screen is migrated;
- * only migrated screens are listed so every row opens a real destination.
- */
+/** Video operations menu — all 19 screens, in the old feature order. */
 private val VIDEO_MENU = listOf(
-    MenuItem(R.string.compress_a_video, Routes.COMPRESS_VIDEO)
+    MenuItem(R.string.cut_video_using_time, Routes.CUT_VIDEO),
+    MenuItem(R.string.image_to_video, Routes.IMAGE_TO_VIDEO),
+    MenuItem(R.string.add_water_mark_on_video, Routes.ADD_WATERMARK),
+    MenuItem(R.string.add_text_on_video, Routes.ADD_TEXT),
+    MenuItem(R.string.merge_image_and_video, Routes.COMBINE_IMAGE_VIDEO),
+    MenuItem(R.string.merge_images, Routes.COMBINE_IMAGES),
+    MenuItem(R.string.merge_videos, Routes.COMBINE_VIDEOS),
+    MenuItem(R.string.compress_a_video, Routes.COMPRESS_VIDEO),
+    MenuItem(R.string.extract_frame_from_video, Routes.EXTRACT_IMAGES),
+    MenuItem(R.string.extract_audio_from_video, Routes.EXTRACT_AUDIO),
+    MenuItem(R.string.fast_slow_motion_video, Routes.FAST_SLOW_VIDEO),
+    MenuItem(R.string.reverse_video, Routes.REVERSE_VIDEO),
+    MenuItem(R.string.video_fade_in_and_fade_out, Routes.FADE_IN_OUT),
+    MenuItem(R.string.video_to_gif, Routes.VIDEO_TO_GIF),
+    MenuItem(R.string.video_rotate, Routes.ROTATE_FLIP),
+    MenuItem(R.string.audio_remove_from_video, Routes.REMOVE_AUDIO),
+    MenuItem(R.string.set_aspect_ratio, Routes.ASPECT_RATIO),
+    MenuItem(R.string.merge_video_and_audio, Routes.MERGE_AUDIO_VIDEO),
+    MenuItem(R.string.merge_image_and_audio, Routes.MERGE_IMAGE_MP3)
 )
 
-/** Audio/GIF operations menu. Same rule as [VIDEO_MENU]. */
+/** Audio/GIF operations menu — all 6 screens. */
 private val OTHER_MENU = listOf(
+    MenuItem(R.string.merge_gif, Routes.MERGE_GIF),
+    MenuItem(R.string.merge_audios, Routes.MERGE_AUDIOS),
+    MenuItem(R.string.change_audio_volume, Routes.CHANGE_AUDIO_VOLUME),
+    MenuItem(R.string.fast_slow_audio_convert, Routes.FAST_SLOW_AUDIO),
+    MenuItem(R.string.crop_audio_using_time, Routes.CROP_AUDIO),
     MenuItem(R.string.compress_audio, Routes.COMPRESS_AUDIO)
 )
 
