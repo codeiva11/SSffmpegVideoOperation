@@ -40,8 +40,7 @@ import java.io.File
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
     BEST(24, "auto", "Best quality (CRF 24)"),
-    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28)"),
-    SMALLEST(32, "auto", "Smallest size (CRF 32)")
+    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28)")
 }
 
 data class H265CompressState(
