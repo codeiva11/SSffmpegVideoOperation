@@ -36,7 +36,7 @@ import java.io.File
  * the file size. Preset is Auto for all qualities: x265 has no preset
  * named "auto", its default is medium, so no -preset flag is passed.
  * Audio is AAC at a higher bitrate than the input (input + 64k, max
- * 320k), probed automatically. Default is Balanced (CRF 28, Auto).
+ * 320k), probed automatically. Default is Best (CRF 24, Auto).
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
     BEST(24, "auto", "Best quality (CRF 24)"),
@@ -47,7 +47,7 @@ enum class H265Quality(val crf: Int, val preset: String, val label: String) {
 data class H265CompressState(
     val inputPath: String? = null,
     val inputSize: String? = null,
-    val quality: H265Quality = H265Quality.BALANCED,
+    val quality: H265Quality = H265Quality.BEST,
     val outputPath: String? = null,
     val log: String = "",
     val isRunning: Boolean = false,
