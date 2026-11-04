@@ -12,7 +12,7 @@ android {
         applicationId "com.simform.videoimageeditor"
         minSdk 24
         targetSdk 34
-        versionCode 1
+        versionCode (System.getenv('VERSION_CODE')?.toInteger() ?: 1)
         versionName "2.0.0"
     }
 
