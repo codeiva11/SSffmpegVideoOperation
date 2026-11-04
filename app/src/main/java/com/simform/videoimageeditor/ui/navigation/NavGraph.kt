@@ -26,6 +26,7 @@ import com.simform.videoimageeditor.ui.ops.video.ExtractAudioScreen
 import com.simform.videoimageeditor.ui.ops.video.ExtractImagesScreen
 import com.simform.videoimageeditor.ui.ops.video.FadeInFadeOutScreen
 import com.simform.videoimageeditor.ui.ops.video.FastSlowVideoScreen
+import com.simform.videoimageeditor.ui.ops.video.H265CompressScreen
 import com.simform.videoimageeditor.ui.ops.video.ImageToVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.MergeAudioVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.MergeImageAndMp3Screen
@@ -49,6 +50,7 @@ object Routes {
     const val COMBINE_IMAGES = "combine_images"
     const val COMBINE_VIDEOS = "combine_videos"
     const val COMPRESS_VIDEO = "compress_video"
+    const val H265_COMPRESS = "h265_compress"
     const val EXTRACT_IMAGES = "extract_images"
     const val EXTRACT_AUDIO = "extract_audio"
     const val FAST_SLOW_VIDEO = "fast_slow_video"
@@ -98,6 +100,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable(Routes.COMBINE_IMAGES) { CombineImagesScreen(onBack = back) }
         composable(Routes.COMBINE_VIDEOS) { CombineVideosScreen(onBack = back) }
         composable(Routes.COMPRESS_VIDEO) { CompressVideoScreen(onBack = back) }
+        composable(Routes.H265_COMPRESS) { H265CompressScreen(onBack = back) }
         composable(Routes.EXTRACT_IMAGES) { ExtractImagesScreen(onBack = back) }
         composable(Routes.EXTRACT_AUDIO) { ExtractAudioScreen(onBack = back) }
         composable(Routes.FAST_SLOW_VIDEO) { FastSlowVideoScreen(onBack = back) }

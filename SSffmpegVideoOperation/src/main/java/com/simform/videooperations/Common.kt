@@ -106,10 +106,23 @@ object Common {
         }
     }
 
+    /**
+     * Output files go to the public "Ffmpeg Output" folder at the root of the
+     * phone storage (/storage/emulated/0/Ffmpeg Output/), so they are visible
+     * in Files and survive an uninstall. That folder needs all-files access
+     * (MANAGE_EXTERNAL_STORAGE on Android 11+); when it cannot be created the
+     * app-private Output folder is used instead so operations still work.
+     */
     fun getFilePath(context: Context, fileExtension: String): String {
-        val dir = File(context.getExternalFilesDir(Common.OUT_PUT_DIR).toString())
-        if (!dir.exists()) {
-            dir.mkdirs()
+        val publicDir = File(android.os.Environment.getExternalStorageDirectory(), "Ffmpeg Output")
+        val dir = if (publicDir.exists() || publicDir.mkdirs()) {
+            publicDir
+        } else {
+            File(context.getExternalFilesDir(Common.OUT_PUT_DIR).toString()).apply {
+                if (!exists()) {
+                    mkdirs()
+                }
+            }
         }
         var extension: String? = null
         when {

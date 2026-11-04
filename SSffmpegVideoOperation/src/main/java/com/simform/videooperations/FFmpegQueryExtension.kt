@@ -204,6 +204,33 @@ public class FFmpegQueryExtension {
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Best H.265 (HEVC) compression: smallest size at the best quality.
+     * libx265 (GPL build) at CRF 28 + preset slow gives roughly the quality of
+     * H.264 CRF 23 at about half the file size. Audio is re-encoded to AAC
+     * 128k so any input container works; video keeps its original frame rate.
+     * `-tag:v hvc1` keeps the file playable on Apple devices, `+faststart`
+     * moves the index to the front so playback starts without waiting.
+     */
+    fun compressH265(
+        inputVideo: String,
+        output: String,
+        crf: Int = 28,
+        preset: String = "slow"
+    ): Array<String> {
+        return arrayOf(
+            "-y", "-i", inputVideo,
+            "-c:v", "libx265",
+            "-crf", crf.toString(),
+            "-preset", preset,
+            "-pix_fmt", "yuv420p",
+            "-tag:v", "hvc1",
+            "-movflags", "+faststart",
+            "-c:a", "aac", "-b:a", "128k",
+            output
+        )
+    }
+
     fun extractImages(inputVideo: String, output: String, spaceOfFrame: Float): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
