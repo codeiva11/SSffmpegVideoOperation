@@ -6,8 +6,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.simform.videoimageeditor.ui.home.HomeScreen
-import com.simform.videoimageeditor.ui.home.OtherMenuScreen
-import com.simform.videoimageeditor.ui.home.VideoMenuScreen
 import com.simform.videoimageeditor.ui.ops.audio.ChangeAudioVolumeScreen
 import com.simform.videoimageeditor.ui.ops.audio.CompressAudioScreen
 import com.simform.videoimageeditor.ui.ops.audio.CropAudioScreen
@@ -36,12 +34,11 @@ import com.simform.videoimageeditor.ui.ops.video.RotateFlipScreen
 import com.simform.videoimageeditor.ui.ops.video.VideoToGifScreen
 
 /**
- * One route per screen — all 25 operations, plus home and the two menus.
+ * One route per screen — all 25 operations, plus home (which lists them
+ * all flat, no menu screens).
  */
 object Routes {
     const val HOME = "home"
-    const val VIDEO_OPS = "video_ops"
-    const val OTHER_OPS = "other_ops"
     const val CUT_VIDEO = "cut_video"
     const val IMAGE_TO_VIDEO = "image_to_video"
     const val ADD_WATERMARK = "add_watermark"
@@ -74,22 +71,7 @@ object Routes {
 fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(navController, startDestination = Routes.HOME, modifier = modifier) {
         composable(Routes.HOME) {
-            HomeScreen(
-                onVideoOps = { navController.navigate(Routes.VIDEO_OPS) },
-                onOtherOps = { navController.navigate(Routes.OTHER_OPS) }
-            )
-        }
-        composable(Routes.VIDEO_OPS) {
-            VideoMenuScreen(
-                onBack = { navController.popBackStack() },
-                onOpen = { route -> navController.navigate(route) }
-            )
-        }
-        composable(Routes.OTHER_OPS) {
-            OtherMenuScreen(
-                onBack = { navController.popBackStack() },
-                onOpen = { route -> navController.navigate(route) }
-            )
+            HomeScreen(onOpen = { route -> navController.navigate(route) })
         }
         val back: () -> Unit = { navController.popBackStack() }
         composable(Routes.CUT_VIDEO) { CutVideoScreen(onBack = back) }

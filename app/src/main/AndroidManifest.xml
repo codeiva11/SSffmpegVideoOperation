@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Background encoding: a foreground service keeps the FFmpeg
          operation alive when the app is minimised. -->
+    <!-- Screen-off encoding: a partial wake lock keeps the CPU awake
+         while an encode runs with the screen off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

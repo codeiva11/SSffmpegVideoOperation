@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.arthenica.ffmpegkit.FFmpegKit
@@ -17,12 +18,18 @@ import com.simform.videoimageeditor.MainActivity
 import com.simform.videoimageeditor.R
 
 /**
- * Keeps an FFmpeg operation alive when the app is minimised.
+ * Keeps an FFmpeg operation alive when the app is minimised — and when
+ * the phone screen is off.
  *
- * The encode itself still runs on CallBackOfQuery's background thread; this
- * service only holds the process in the foreground (with a persistent
- * notification, so Android cannot silently kill the encode) and offers a
- * Cancel action. Started in [com.simform.videoimageeditor.ui.mvi.OperationViewModel.executeQuery]
+ * The encode itself still runs on CallBackOfQuery's background thread;
+ * this service holds the process in the foreground (with a persistent
+ * notification, so Android cannot silently kill the encode) and offers
+ * a Cancel action. A foreground service alone does NOT keep the CPU
+ * awake once the screen turns off (Doze puts the CPU to sleep, and the
+ * encode stalls) — so the service also holds a PARTIAL_WAKE_LOCK while
+ * an encode runs, which keeps the CPU on with the screen off. The lock
+ * is released on destroy / cancel, so it never outlives the encode.
+ * Started in [com.simform.videoimageeditor.ui.mvi.OperationViewModel.executeQuery]
  * so it covers every operation screen, stopped on success / failure /
  * cancel. START_NOT_STICKY: if the system kills it, the encode is gone
  * and the user re-runs it — no silent restart.
@@ -31,6 +38,13 @@ import com.simform.videoimageeditor.R
  * know that value yet and rejects the manifest).
  */
 class EncodeService : Service() {
+
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    override fun onDestroy() {
+        releaseWakeLock()
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -46,6 +60,7 @@ class EncodeService : Service() {
                 } else {
                     startForeground(NOTIFICATION_ID, buildNotification(label))
                 }
+                acquireWakeLock()
             }
             ACTION_CANCEL -> {
                 FFmpegKit.cancel()
@@ -56,6 +71,24 @@ class EncodeService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** Keeps the CPU awake with the screen off; released in onDestroy. */
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val power = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = power.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "SSffmpegVideoOperation:Encode"
+        ).apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+    }
 
     private fun createChannel() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
