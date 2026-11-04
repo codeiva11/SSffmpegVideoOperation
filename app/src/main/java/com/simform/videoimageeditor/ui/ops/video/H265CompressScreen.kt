@@ -35,12 +35,13 @@ import java.io.File
  * libx265 at CRF 28 holds roughly H.264 CRF 23 quality at about half
  * the file size. Preset is Auto for all qualities: x265 has no preset
  * named "auto", its default is medium, so no -preset flag is passed.
- * Default is Balanced (CRF 28, Auto).
+ * Audio is AAC at a higher bitrate than the input (input + 64k, max
+ * 320k), probed automatically. Default is Balanced (CRF 28, Auto).
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
-    BEST(24, "auto", "Best quality (CRF 24, AAC 192k)"),
-    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28, AAC 192k)"),
-    SMALLEST(32, "auto", "Smallest size (CRF 32, AAC 192k)")
+    BEST(24, "auto", "Best quality (CRF 24)"),
+    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28)"),
+    SMALLEST(32, "auto", "Smallest size (CRF 32)")
 }
 
 data class H265CompressState(
@@ -88,14 +89,20 @@ class H265CompressViewModel :
                 val input = state.value.inputPath ?: return
                 val quality = state.value.quality
                 setState { copy(isRunning = true, log = "", outputPath = event.outputPath, error = null) }
-                val query = queries.compressH265(input, event.outputPath, quality.crf, quality.preset)
-                executeQuery(
-                    query,
-                    onLog = { onEvent(H265CompressEvent.LogReceived(it.text)) },
-                    onSuccess = { onEvent(H265CompressEvent.Succeeded) },
-                    onCancel = { setState { copy(isRunning = false) } },
-                    onFailed = { onEvent(H265CompressEvent.Failed) }
-                )
+                // compressH265 probes the input audio bitrate (FFprobeKit
+                // blocks), so the query is built off the main thread.
+                Thread {
+                    val query = queries.compressH265(
+                        input, event.outputPath, quality.crf, quality.preset
+                    )
+                    executeQuery(
+                        query,
+                        onLog = { onEvent(H265CompressEvent.LogReceived(it.text)) },
+                        onSuccess = { onEvent(H265CompressEvent.Succeeded) },
+                        onCancel = { setState { copy(isRunning = false) } },
+                        onFailed = { onEvent(H265CompressEvent.Failed) }
+                    )
+                }.start()
             }
             H265CompressEvent.Cancel -> {
                 cancelRunning()
@@ -126,9 +133,10 @@ fun H265CompressScreen(
         ) { picker.pickAnyVideo() }
         state.inputSize?.let { Text("Input file Size : $it") }
         Text(
-            "Any video file works as input. Output is H.265 video with " +
-                "high-quality AAC 192k audio, at about half the size of H.264. " +
-                "Preset Auto.",
+            "Any video file works as input — FFmpeg detects the format " +
+                "automatically. Output is H.265 video with AAC audio at a " +
+                "higher bitrate than the input (input + 64k, max 320k), at " +
+                "about half the size of H.264. Preset Auto.",
             style = MaterialTheme.typography.bodySmall
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

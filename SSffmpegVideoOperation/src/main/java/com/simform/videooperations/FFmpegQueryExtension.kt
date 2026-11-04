@@ -1,5 +1,8 @@
 package com.simform.videooperations
 
+import com.arthenica.ffmpegkit.FFprobeKit
+import com.arthenica.ffmpegkit.ReturnCode
+
 /**
  * Created by Ashvin Vavaliya on 10,December,2020
  * Simform Solutions Pvt Ltd.
@@ -205,9 +208,8 @@ public class FFmpegQueryExtension {
     }
 
     /**
-     * H.265 (HEVC) compression, exactly Sunil's command:
-     * `ffmpeg -i input.mp4 -c:v libx265 -crf 28 -preset auto -c:a aac
-     * -b:a 128k output.mp4`.
+     * H.265 (HEVC) compression, Sunil's command:
+     * `ffmpeg -i input.mp4 -c:v libx265 -crf 28 output.mp4`.
      *
      * Preset "Auto": x265 has NO preset named "auto" (valid presets are
      * ultrafast..placebo, FFmpeg Wiki H.265 guide) and its DEFAULT preset
@@ -215,9 +217,15 @@ public class FFmpegQueryExtension {
      * and x265 uses medium.
      *
      * Input may be any video format / container and any audio codec:
-     * FFmpeg decodes it, video goes to libx265 and audio is re-encoded
-     * to high-quality AAC 192k, so the output always carries H.265 video
-     * together with AAC audio. Video keeps its original frame rate.
+     * FFmpeg detects the format automatically from the file itself, video
+     * goes to libx265, and audio is re-encoded to AAC at a HIGHER bitrate
+     * than the input audio (input + 64k, capped at 320k), so the output
+     * always carries H.265 video together with better-quality AAC audio.
+     * When the input audio bitrate cannot be probed, or the input has no
+     * audio stream, 192k is used. Video keeps its original frame rate.
+     *
+     * NOTE: probing runs FFprobeKit, which blocks — callers must build
+     * this query off the main thread.
      */
     fun compressH265(
         inputVideo: String,
@@ -225,6 +233,8 @@ public class FFmpegQueryExtension {
         crf: Int = 28,
         preset: String = "auto"
     ): Array<String> {
+        val audioKbps = probeAudioBitrateKbps(inputVideo)
+            ?.let { minOf(it + 64, 320) } ?: 192
         val args = mutableListOf(
             "-y", "-i", inputVideo,
             "-c:v", "libx265",
@@ -237,9 +247,32 @@ public class FFmpegQueryExtension {
         args.add("-c:a")
         args.add("aac")
         args.add("-b:a")
-        args.add("192k")
+        args.add("${audioKbps}k")
         args.add(output)
         return args.toTypedArray()
+    }
+
+    /**
+     * First audio stream bitrate in kbps, or null when the input has no
+     * audio stream, the bitrate is not recorded, or the probe fails.
+     * Blocking — call only off the main thread.
+     */
+    private fun probeAudioBitrateKbps(inputPath: String): Int? {
+        return try {
+            val session = FFprobeKit.executeWithArguments(
+                arrayOf(
+                    "-v", "error",
+                    "-select_streams", "a:0",
+                    "-show_entries", "stream=bit_rate",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    inputPath
+                )
+            )
+            if (!ReturnCode.isSuccess(session.returnCode)) return null
+            session.output?.trim()?.toIntOrNull()?.let { it / 1000 }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun extractImages(inputVideo: String, output: String, spaceOfFrame: Float): Array<String> {
