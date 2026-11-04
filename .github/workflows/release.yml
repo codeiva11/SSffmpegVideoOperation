@@ -5,6 +5,12 @@ on:
   push:
     branches: [compose-migration]
   workflow_dispatch:
+# A new push cancels the previous run on this branch, so only the
+# newest code builds — no pile-up of stale queued runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
