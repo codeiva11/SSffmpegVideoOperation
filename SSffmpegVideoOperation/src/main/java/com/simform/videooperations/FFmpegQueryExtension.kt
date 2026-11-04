@@ -212,8 +212,12 @@ public class FFmpegQueryExtension {
      * Preset "Auto": x265 has NO preset named "auto" (valid presets are
      * ultrafast..placebo, FFmpeg Wiki H.265 guide) and its DEFAULT preset
      * is medium — so Auto means the `-preset` flag is not passed at all
-     * and x265 uses medium. Audio is re-encoded to AAC 128k so any input
-     * container works; video keeps its original frame rate.
+     * and x265 uses medium.
+     *
+     * Input may be any video format / container and any audio codec:
+     * FFmpeg decodes it, video goes to libx265 and audio is re-encoded
+     * to high-quality AAC 192k, so the output always carries H.265 video
+     * together with AAC audio. Video keeps its original frame rate.
      */
     fun compressH265(
         inputVideo: String,
@@ -233,7 +237,7 @@ public class FFmpegQueryExtension {
         args.add("-c:a")
         args.add("aac")
         args.add("-b:a")
-        args.add("128k")
+        args.add("192k")
         args.add(output)
         return args.toTypedArray()
     }

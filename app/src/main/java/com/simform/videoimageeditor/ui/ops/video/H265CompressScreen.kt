@@ -38,9 +38,9 @@ import java.io.File
  * Default is Balanced (CRF 28, Auto).
  */
 enum class H265Quality(val crf: Int, val preset: String, val label: String) {
-    BEST(24, "auto", "Best quality (CRF 24, Auto)"),
-    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28, Auto)"),
-    SMALLEST(32, "auto", "Smallest size (CRF 32, Auto)")
+    BEST(24, "auto", "Best quality (CRF 24, AAC 192k)"),
+    BALANCED(28, "auto", "Balanced — small size, best quality (CRF 28, AAC 192k)"),
+    SMALLEST(32, "auto", "Smallest size (CRF 32, AAC 192k)")
 }
 
 data class H265CompressState(
@@ -123,10 +123,12 @@ fun H265CompressScreen(
             label = stringResource(R.string.input_path),
             path = state.inputPath,
             buttonText = stringResource(R.string.uploadvideo)
-        ) { picker.pickVideo() }
+        ) { picker.pickAnyVideo() }
         state.inputSize?.let { Text("Input file Size : $it") }
         Text(
-            "H.265 (HEVC) — same quality at about half the size of H.264.",
+            "Any video file works as input. Output is H.265 video with " +
+                "high-quality AAC 192k audio, at about half the size of H.264. " +
+                "Preset Auto.",
             style = MaterialTheme.typography.bodySmall
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

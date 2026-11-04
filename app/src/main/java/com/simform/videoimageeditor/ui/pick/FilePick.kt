@@ -27,7 +27,8 @@ class FilePicker internal constructor(
     private val pickSingleVisual: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>,
     private val pickMultipleVisual: ManagedActivityResultLauncher<PickVisualMediaRequest, List<Uri>>,
     private val pickSingleAudio: ManagedActivityResultLauncher<String, Uri?>,
-    private val pickMultipleAudio: ManagedActivityResultLauncher<String, List<Uri>>
+    private val pickMultipleAudio: ManagedActivityResultLauncher<String, List<Uri>>,
+    private val pickSingleVideoFile: ManagedActivityResultLauncher<String, Uri?>
 ) {
     fun pickVideo() = pickSingleVisual.launch(
         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
@@ -44,6 +45,13 @@ class FilePicker internal constructor(
     fun pickImages() = pickMultipleVisual.launch(
         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
     )
+
+    /**
+     * Any video file, any format (mp4/mkv/avi/mov/webm/...): the system file
+     * picker with video/*, not the photo picker which only lists
+     * media-store videos.
+     */
+    fun pickAnyVideo() = pickSingleVideoFile.launch("video/*")
 
     fun pickAudio() = pickSingleAudio.launch("audio/*")
 
@@ -76,8 +84,17 @@ fun rememberFilePicker(
     val pickMultipleAudio = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris -> deliver(uris) }
-    return remember(pickSingleVisual, pickMultipleVisual, pickSingleAudio, pickMultipleAudio) {
-        FilePicker(pickSingleVisual, pickMultipleVisual, pickSingleAudio, pickMultipleAudio)
+    val pickSingleVideoFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { deliver(listOf(it)) } }
+    return remember(
+        pickSingleVisual, pickMultipleVisual, pickSingleAudio, pickMultipleAudio,
+        pickSingleVideoFile
+    ) {
+        FilePicker(
+            pickSingleVisual, pickMultipleVisual, pickSingleAudio, pickMultipleAudio,
+            pickSingleVideoFile
+        )
     }
 }
 
