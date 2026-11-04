@@ -80,18 +80,40 @@ suspend fun downloadAndVerify(
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val apk = File(dir, "app-release.apk")
         if (!downloadFile(info.apkUrl, apk, onProgress)) return@withContext null
-        val expected = info.shaUrl
-            ?.let { downloadText(it) }
-            ?.trim()
-            ?.split("\\s+".toRegex())
-            ?.firstOrNull()
-            .orEmpty()
+        val expected = fetchExpectedSha(info).orEmpty()
         if (expected.isEmpty()) return@withContext null
         if (!sha256(apk).equals(expected, ignoreCase = true)) return@withContext null
         apk
     } catch (_: Exception) {
         null
     }
+}
+
+/**
+ * Returns the already-downloaded APK when it is still in cacheDir/updates
+ * and its SHA-256 matches the release sidecar — so a user who tapped
+ * Later does not re-download the APK on the next launch.
+ */
+suspend fun verifiedCachedApk(context: Context, info: UpdateInfo): File? = withContext(Dispatchers.IO) {
+    try {
+        val apk = File(File(context.cacheDir, "updates"), "app-release.apk")
+        if (!apk.exists()) return@withContext null
+        val expected = fetchExpectedSha(info).orEmpty()
+        if (expected.isEmpty()) return@withContext null
+        if (!sha256(apk).equals(expected, ignoreCase = true)) return@withContext null
+        apk
+    } catch (_: Exception) {
+        null
+    }
+}
+
+/** First token of the .sha256 sidecar (the file holds "<hash>  <name>"). */
+private fun fetchExpectedSha(info: UpdateInfo): String? {
+    return info.shaUrl
+        ?.let { downloadText(it) }
+        ?.trim()
+        ?.split("\\s+".toRegex())
+        ?.firstOrNull()
 }
 
 private fun downloadFile(url: String, dest: File, onProgress: (Int) -> Unit): Boolean {

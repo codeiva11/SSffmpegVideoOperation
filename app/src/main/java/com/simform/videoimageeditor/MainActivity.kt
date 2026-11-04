@@ -10,13 +10,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,11 +21,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.simform.videoimageeditor.ui.navigation.AppNavHost
 import com.simform.videoimageeditor.ui.service.EncodeService
@@ -39,10 +32,11 @@ import com.simform.videoimageeditor.ui.storage.ensureOutputFolder
 import com.simform.videoimageeditor.ui.storage.hasStorageAccess
 import com.simform.videoimageeditor.ui.theme.VideoOperationsTheme
 import com.simform.videoimageeditor.ui.updater.UpdateInfo
+import com.simform.videoimageeditor.ui.updater.verifiedCachedApk
+import java.io.File
 import com.simform.videoimageeditor.ui.updater.checkForUpdate
 import com.simform.videoimageeditor.ui.updater.downloadAndVerify
 import com.simform.videoimageeditor.ui.updater.installApk
-import kotlinx.coroutines.launch
 
 /**
  * Single-activity host for the Compose UI. Every screen is a destination in
@@ -131,67 +125,43 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** In-app updater dialog: shown when a newer GitHub release exists. */
+/** In-app updater: the new version downloads silently first, and the
+ * popup appears only once the APK is downloaded and checksum-verified —
+ * so tapping Install Update installs at once, with no waiting. A failed
+ * download stays silent (no popup at all). A cached verified APK is
+ * reused, so tapping Later does not re-download on the next launch. */
 @Composable
 private fun UpdateDialog() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var update by remember { mutableStateOf<UpdateInfo?>(null) }
-    var downloading by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var readyApk by remember { mutableStateOf<File?>(null) }
 
     LaunchedEffect(Unit) {
-        update = checkForUpdate()
+        val info = checkForUpdate() ?: return@LaunchedEffect
+        update = info
+        readyApk = verifiedCachedApk(context, info)
+            ?: downloadAndVerify(context, info) {}
     }
 
     val info = update ?: return
+    val apk = readyApk ?: return
     AlertDialog(
-        onDismissRequest = { if (!downloading) update = null },
+        onDismissRequest = { update = null },
         title = { Text("Install Update") },
         text = {
-            Column {
-                Text("A new version ${info.tag} is available.")
-                if (downloading) {
-                    Spacer(Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { progress / 100f },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text("Downloading… $progress%")
-                }
-                error?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            }
+            Text(
+                "A new version ${info.tag} is available. It has already " +
+                    "been downloaded — tap Install Update to install it now."
+            )
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    if (downloading) return@TextButton
-                    downloading = true
-                    error = null
-                    scope.launch {
-                        val apk = downloadAndVerify(context, info) { progress = it }
-                        downloading = false
-                        if (apk != null) {
-                            update = null
-                            installApk(context, apk)
-                        } else {
-                            error = "Download failed or checksum did not match."
-                        }
-                    }
-                },
-                enabled = !downloading
-            ) { Text("Install Update") }
+            TextButton(onClick = {
+                update = null
+                installApk(context, apk)
+            }) { Text("Install Update") }
         },
         dismissButton = {
-            TextButton(
-                onClick = { if (!downloading) update = null },
-                enabled = !downloading
-            ) { Text("Later") }
+            TextButton(onClick = { update = null }) { Text("Later") }
         }
     )
 }
