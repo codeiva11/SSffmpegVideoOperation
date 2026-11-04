@@ -52,8 +52,8 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    // FFmpeg engine: ffmpeg-kit 6.0 (maintained successor of mobile-ffmpeg 4.4).
+    // FFmpeg engine: ffmpeg-kit 6.0.LTS (maintained successor of mobile-ffmpeg 4.4).
     // Query builders in this module use only the Kotlin stdlib and are KMP-ready;
     // only the runner (CallBackOfQuery) touches this Android-only dependency.
-    implementation 'com.arthenica:ffmpeg-kit-full:6.0'
+    implementation 'com.arthenica:ffmpeg-kit-full:6.0.LTS'
 }
