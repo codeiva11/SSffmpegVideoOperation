@@ -13,7 +13,7 @@ class Statistics {
     var videoFps: Float
     var videoQuality: Float
     var size: Long
-    var time: Int
+    var time: Double
     var bitrate: Double
     var speed: Double
 
@@ -23,12 +23,12 @@ class Statistics {
         videoFps = 0f
         videoQuality = 0f
         size = 0
-        time = 0
+        time = 0.0
         bitrate = 0.0
         speed = 0.0
     }
 
-    constructor(executionId: Long, videoFrameNumber: Int, videoFps: Float, videoQuality: Float, size: Long, time: Int, bitrate: Double, speed: Double) {
+    constructor(executionId: Long, videoFrameNumber: Int, videoFps: Float, videoQuality: Float, size: Long, time: Double, bitrate: Double, speed: Double) {
         this.executionId = executionId
         this.videoFrameNumber = videoFrameNumber
         this.videoFps = videoFps

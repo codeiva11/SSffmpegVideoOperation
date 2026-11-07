@@ -1,29 +1,20 @@
 package com.simform.videooperations
 
 import android.content.Context
-import android.content.Intent
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.text.TextUtils
-import androidx.appcompat.app.AppCompatActivity
-import com.jaiselrahman.filepicker.activity.FilePickerActivity
-import com.jaiselrahman.filepicker.config.Configurations
 import java.io.File
 import java.io.FileInputStream
-import java.io.IOException
 import java.text.DecimalFormat
 import java.util.Formatter
 import java.util.Locale
 
 /**
- * Created by Ashvin Vavaliya on 24,November,2020
- * Simform Solutions Pvt Ltd.
+ * Shared constants and file helpers for the video operations.
+ * File picking lives in the app (Activity Result API); this object has no UI.
  */
 object Common {
-    const val PERM = 111
-    const val VIDEO_FILE_REQUEST_CODE = 112
-    const val IMAGE_FILE_REQUEST_CODE = 113
-    const val AUDIO_FILE_REQUEST_CODE = 114
     const val TIME_FORMAT = "HH:mm:ss"
     const val OUT_PUT_DIR: String = "Output"
     private val format: DecimalFormat = DecimalFormat("#.##")
@@ -36,7 +27,7 @@ object Common {
     const val GIF: String = "GIF"
     const val MP3: String = "MP3"
 
-   // Standard Ratio
+    // Standard Ratio
     const val RATIO_1: String = "16:9"
     const val RATIO_2: String = "4:3"
     const val RATIO_3: String = "16:10"
@@ -69,22 +60,24 @@ object Common {
         return mFormatter.format("%02d:%02d:%02d", hours, minutes, seconds).toString()
     }
 
-    fun getFrameRate(fileString: String) {
+    /**
+     * Reads the frame rate of the video track, or null when it cannot be read.
+     * Callers set the result on their own FFmpegQueryExtension instance:
+     * `ffmpegQueryExtension.FRAME_RATE = Common.getFrameRate(path) ?: 25`.
+     * (Previously this wrote to a throwaway instance, so detection never took effect.)
+     */
+    fun getFrameRate(fileString: String): Int? {
         val extractor = MediaExtractor()
         val file = File(fileString)
         var fis: FileInputStream? = null
         try {
             fis = FileInputStream(file)
-            val fd = fis.fd
-            extractor.setDataSource(fd)
-            val numTracks = extractor.trackCount
-            for (i in 0 until numTracks) {
+            extractor.setDataSource(fis.fd)
+            for (i in 0 until extractor.trackCount) {
                 val format = extractor.getTrackFormat(i)
                 val mime = format.getString(MediaFormat.KEY_MIME)
-                if (mime?.startsWith("video/") == true) {
-                    if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
-                        FFmpegQueryExtension().FRAME_RATE = format.getInteger(MediaFormat.KEY_FRAME_RATE)
-                    }
+                if (mime?.startsWith("video/") == true && format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
+                    return format.getInteger(MediaFormat.KEY_FRAME_RATE)
                 }
             }
         } catch (e: Exception) {
@@ -97,6 +90,7 @@ object Common {
                 e.printStackTrace()
             }
         }
+        return null
     }
 
     fun getFileSize(file: File): String {
@@ -108,65 +102,29 @@ object Common {
         return if (length > KB) {
             format.format(length / KB).toString() + " KB"
         } else {
-            format.format(length).toString() + " GB"
+            format.format(length).toString() + " B"
         }
     }
 
-    fun selectFile(activity: AppCompatActivity, maxSelection: Int, isImageSelection: Boolean, isAudioSelection: Boolean) {
-        val intent = Intent(activity, FilePickerActivity::class.java)
-        when {
-            isImageSelection -> {
-                intent.putExtra(
-                    FilePickerActivity.CONFIGS, Configurations.Builder()
-                        .setCheckPermission(true)
-                        .setShowImages(true)
-                        .setShowVideos(false)
-                        .enableImageCapture(true)
-                        .enableVideoCapture(false)
-                        .setMaxSelection(maxSelection)
-                        .setSkipZeroSizeFiles(true)
-                        .build()
-                )
-                activity.startActivityForResult(intent, IMAGE_FILE_REQUEST_CODE)
-            }
-            isAudioSelection -> {
-                intent.putExtra(
-                    FilePickerActivity.CONFIGS, Configurations.Builder()
-                        .setCheckPermission(true)
-                        .setShowImages(false)
-                        .setShowVideos(false)
-                        .setShowAudios(true)
-                        .enableImageCapture(false)
-                        .enableVideoCapture(false)
-                        .setMaxSelection(maxSelection)
-                        .setSkipZeroSizeFiles(true)
-                        .build()
-                )
-                activity.startActivityForResult(intent, AUDIO_FILE_REQUEST_CODE)
-            }
-            else -> {
-                intent.putExtra(
-                    FilePickerActivity.CONFIGS, Configurations.Builder()
-                        .setCheckPermission(true)
-                        .setShowImages(false)
-                        .setShowVideos(true)
-                        .enableImageCapture(false)
-                        .enableVideoCapture(true)
-                        .setMaxSelection(maxSelection)
-                        .setSkipZeroSizeFiles(true)
-                        .build()
-                )
-                activity.startActivityForResult(intent, VIDEO_FILE_REQUEST_CODE)
+    /**
+     * Output files go to the public "Ffmpeg Output" folder at the root of the
+     * phone storage (/storage/emulated/0/Ffmpeg Output/), so they are visible
+     * in Files and survive an uninstall. That folder needs all-files access
+     * (MANAGE_EXTERNAL_STORAGE on Android 11+); when it cannot be created the
+     * app-private Output folder is used instead so operations still work.
+     */
+    fun getFilePath(context: Context, fileExtension: String): String {
+        val publicDir = File(android.os.Environment.getExternalStorageDirectory(), "Ffmpeg Output")
+        val dir = if (publicDir.exists() || publicDir.mkdirs()) {
+            publicDir
+        } else {
+            File(context.getExternalFilesDir(Common.OUT_PUT_DIR).toString()).apply {
+                if (!exists()) {
+                    mkdirs()
+                }
             }
         }
-    }
-
-    fun getFilePath(context: Context, fileExtension: String) : String {
-        val dir = File(context.getExternalFilesDir(Common.OUT_PUT_DIR).toString())
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        var extension:String? = null
+        var extension: String? = null
         when {
             TextUtils.equals(fileExtension, IMAGE) -> {
                 extension = "%03d.jpg"
@@ -185,7 +143,7 @@ object Common {
         return dest.absolutePath
     }
 
-    @Throws(IOException::class)
+    @Throws(java.io.IOException::class)
     fun getFileFromAssets(context: Context, fileName: String): File =
         File(context.cacheDir, fileName).also {
             if (!it.exists()) {

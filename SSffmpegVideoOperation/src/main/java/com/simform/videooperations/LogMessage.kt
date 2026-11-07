@@ -1,6 +1,6 @@
 package com.simform.videooperations
 
-import com.arthenica.mobileffmpeg.Level
+import com.arthenica.ffmpegkit.Level
 
 class LogMessage(val executionId: Long, val level: Level, val text: String) {
     override fun toString(): String {

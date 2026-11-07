@@ -1,3 +1,23 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Google-operated mirror of Maven Central (maven-central.storage-download.googleapis.com).
+        // Added 2026-11-04: repo.maven.apache.org/repo1.maven.org returned 404 for
+        // every artifact (including androidx core-ktx) from two networks, while the
+        // Central search index still lists ffmpeg-kit-full 6.0.LTS. The mirror keeps
+        // the build working when Central's file hosts are down.
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2" }
+    }
+}
+rootProject.name = "FFMPEG Video Operation"
 include ':SSffmpegVideoOperation'
 include ':app'
-rootProject.name = "FFMPEG Video Operation"

@@ -2,14 +2,16 @@ package com.simform.videooperations
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
-import com.arthenica.mobileffmpeg.Config
-import com.arthenica.mobileffmpeg.FFmpeg
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.ReturnCode
 import java.util.concurrent.CyclicBarrier
 
 /**
- * Created by Ashvin Vavaliya on 22,January,2021
- * Simform Solutions Pvt Ltd.
+ * Runs an FFmpeg command on a background thread and reports progress,
+ * statistics and the result on the main thread through [FFmpegCallBack].
+ *
+ * Engine: ffmpeg-kit 6.0 (maintained successor of mobile-ffmpeg 4.4).
  */
 class CallBackOfQuery {
     fun callQuery(query: Array<String>, fFmpegCallBack: FFmpegCallBack) {
@@ -24,29 +26,29 @@ class CallBackOfQuery {
     }
 
     fun cancelProcess(executionId: Long) {
-        if (!executionId.equals(0)) {
-            FFmpeg.cancel(executionId)
+        if (executionId != 0L) {
+            FFmpegKit.cancel(executionId)
         } else {
-            FFmpeg.cancel()
+            FFmpegKit.cancel()
         }
     }
 
     fun cancelProcess() {
-        FFmpeg.cancel()
+        FFmpegKit.cancel()
     }
 
     private fun process(query: Array<String>, ffmpegCallBack: FFmpegCallBack) {
         val processHandler = Handler(Looper.getMainLooper())
-        Config.enableLogCallback { logMessage ->
-            val logs = LogMessage(logMessage.executionId, logMessage.level, logMessage.text)
+        FFmpegKitConfig.enableLogCallback { logMessage ->
+            val logs = LogMessage(logMessage.sessionId, logMessage.level, logMessage.message)
             processHandler.post {
                 ffmpegCallBack.process(logs)
             }
         }
-        Config.enableStatisticsCallback { statistics ->
+        FFmpegKitConfig.enableStatisticsCallback { statistics ->
             val statisticsLog =
                 Statistics(
-                    statistics.executionId,
+                    statistics.sessionId,
                     statistics.videoFrameNumber,
                     statistics.videoFps,
                     statistics.videoQuality,
@@ -59,22 +61,22 @@ class CallBackOfQuery {
                 ffmpegCallBack.statisticsProcess(statisticsLog)
             }
         }
-        when (FFmpeg.execute(query)) {
-            Config.RETURN_CODE_SUCCESS -> {
+        val session = FFmpegKit.executeWithArguments(query)
+        when {
+            ReturnCode.isSuccess(session.returnCode) -> {
                 processHandler.post {
                     ffmpegCallBack.success()
                 }
             }
-            Config.RETURN_CODE_CANCEL -> {
+            ReturnCode.isCancel(session.returnCode) -> {
                 processHandler.post {
                     ffmpegCallBack.cancel()
-                    FFmpeg.cancel()
+                    FFmpegKit.cancel()
                 }
             }
             else -> {
                 processHandler.post {
                     ffmpegCallBack.failed()
-                    Config.printLastCommandOutput(Log.INFO)
                 }
             }
         }
