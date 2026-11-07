@@ -31,7 +31,6 @@ private val VIDEO_MENU = listOf(
     MenuItem(R.string.merge_image_and_video, Routes.COMBINE_IMAGE_VIDEO),
     MenuItem(R.string.merge_images, Routes.COMBINE_IMAGES),
     MenuItem(R.string.merge_videos, Routes.COMBINE_VIDEOS),
-    MenuItem(R.string.compress_a_video, Routes.COMPRESS_VIDEO),
     MenuItem(R.string.h265_compress, Routes.H265_COMPRESS),
     MenuItem(R.string.extract_frame_from_video, Routes.EXTRACT_IMAGES),
     MenuItem(R.string.extract_audio_from_video, Routes.EXTRACT_AUDIO),

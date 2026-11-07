@@ -50,7 +50,6 @@
     <string name="compress">Compress</string>
     <string name="extract_frames">Extract Frames</string>
     <string name="extract_frame_from_video">Extract Frames from Video</string>
-    <string name="compress_a_video">Compress a video</string>
     <string name="h265_compress">Compress to H.265 (HEVC)</string>
     <string name="extract_audio_from_video">Extract audio from video</string>
     <string name="extract_audio">Extract Audio</string>

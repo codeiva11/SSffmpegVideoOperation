@@ -36,7 +36,8 @@ private data class HomeItem(@StringRes val titleRes: Int, val route: String)
  * everything inside them, so all features were invisible up front.
  * Order is the original layout order (Merge Video And Audio, Remove
  * Audio, Merge Image And MP3, Aspect Ratio at the tail), with H.265
- * after Compress Video.
+ * where Compress Video used to be (Compress Video was removed:
+ * H.265 HEVC is the compression now).
  */
 private val ALL_OPERATIONS = listOf(
     HomeItem(R.string.cut_video_using_time, Routes.CUT_VIDEO),
@@ -46,7 +47,6 @@ private val ALL_OPERATIONS = listOf(
     HomeItem(R.string.merge_image_and_video, Routes.COMBINE_IMAGE_VIDEO),
     HomeItem(R.string.merge_images, Routes.COMBINE_IMAGES),
     HomeItem(R.string.merge_videos, Routes.COMBINE_VIDEOS),
-    HomeItem(R.string.compress_a_video, Routes.COMPRESS_VIDEO),
     HomeItem(R.string.h265_compress, Routes.H265_COMPRESS),
     HomeItem(R.string.extract_frame_from_video, Routes.EXTRACT_IMAGES),
     HomeItem(R.string.extract_audio_from_video, Routes.EXTRACT_AUDIO),
