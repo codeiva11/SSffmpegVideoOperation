@@ -335,6 +335,27 @@ public class FFmpegQueryExtension {
         }
     }
 
+    /**
+     * True when the input has at least one audio stream, else false.
+     * Blocking — call only off the main thread.
+     */
+    private fun hasAudioStream(inputPath: String): Boolean {
+        return try {
+            val session = FFprobeKit.executeWithArguments(
+                arrayOf(
+                    "-v", "error",
+                    "-select_streams", "a",
+                    "-show_entries", "stream=index",
+                    "-of", "csv=p=0",
+                    inputPath
+                )
+            )
+            ReturnCode.isSuccess(session.returnCode) && !session.output.isNullOrBlank()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun extractImages(inputVideo: String, output: String, spaceOfFrame: Float): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
@@ -579,6 +600,38 @@ public class FFmpegQueryExtension {
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Remove the audio ONLY in [startSeconds, endSeconds] from a video:
+     * the video stream is copied untouched (`-c:v copy` — lossless, fast,
+     * no re-encode) and the audio is muted in the range via
+     * `-af "volume=0:enable='between(t,START,END)'"`, re-encoded AAC at
+     * the H.265 audio rule (input + 64k, capped at 320k, 192k fallback).
+     * The output video keeps its full length; only the chosen range is
+     * silent. Throws IllegalArgumentException when the video has no
+     * audio stream. Blocking (probes) — call only off the main thread.
+     */
+    fun removeAudioRangeFromVideo(
+        inputVideo: String,
+        startSeconds: Int,
+        endSeconds: Int,
+        output: String
+    ): Array<String> {
+        if (!hasAudioStream(inputVideo)) {
+            throw IllegalArgumentException("No audio stream found in the selected video")
+        }
+        val audioKbps = probeAudioBitrateKbps(inputVideo)
+            ?.let { minOf(it + 64, 320) } ?: 192
+        val args = mutableListOf(
+            "-y", "-i", inputVideo,
+            "-c:v", "copy",
+            "-af", "volume=0:enable='between(t,$startSeconds,$endSeconds)'",
+            "-c:a", "aac",
+            "-b:a", "${audioKbps}k",
+            output
+        )
+        return args.toTypedArray()
+    }
+
     fun mergeImageAndAudio(inputImage: String, inputAudio: String, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
@@ -702,6 +755,48 @@ public class FFmpegQueryExtension {
             add(endTime.toString())
             add("-preset")
             add("ultrafast")
+            add(output)
+        }
+        return inputs.toArray(arrayOfNulls<String>(inputs.size))
+    }
+
+    /**
+     * Cut a time range of a VIDEO's audio into a separate audio file:
+     * `-i video -ss start -to end -map 0:a -c:a aac -b:a <rule> out.mp3`.
+     * Only the audio stream is mapped — no video stream in the output.
+     * Audio bitrate follows the H.265 rule (input + 64k, capped at 320k,
+     * 192k fallback). No `-preset ultrafast` — audio encoding needs none.
+     * Unlike [cutAudio] (audio-file input, used by Crop Audio), this
+     * takes a video file. Throws IllegalArgumentException when the video
+     * has no audio stream. Blocking (probes) — call only off the main
+     * thread.
+     */
+    fun cutAudioFromVideo(
+        inputVideo: String,
+        startTime: String?,
+        endTime: String?,
+        output: String
+    ): Array<String> {
+        if (!hasAudioStream(inputVideo)) {
+            throw IllegalArgumentException("No audio stream found in the selected video")
+        }
+        val audioKbps = probeAudioBitrateKbps(inputVideo)
+            ?.let { minOf(it + 64, 320) } ?: 192
+        val inputs: ArrayList<String> = ArrayList()
+        inputs.apply {
+            add("-y")
+            add("-i")
+            add(inputVideo)
+            add("-ss")
+            add(startTime.toString())
+            add("-to")
+            add(endTime.toString())
+            add("-map")
+            add("0:a")
+            add("-c:a")
+            add("aac")
+            add("-b:a")
+            add("${audioKbps}k")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))

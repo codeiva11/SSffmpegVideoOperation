@@ -18,6 +18,7 @@ import com.simform.videoimageeditor.ui.ops.video.AspectRatioScreen
 import com.simform.videoimageeditor.ui.ops.video.CombineImageAndVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.CombineImagesScreen
 import com.simform.videoimageeditor.ui.ops.video.CombineVideosScreen
+import com.simform.videoimageeditor.ui.ops.video.CutAudioFromVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.CutVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.ExtractAudioScreen
 import com.simform.videoimageeditor.ui.ops.video.ExtractImagesScreen
@@ -27,13 +28,14 @@ import com.simform.videoimageeditor.ui.ops.video.H265CompressScreen
 import com.simform.videoimageeditor.ui.ops.video.ImageToVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.MergeAudioVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.MergeImageAndMp3Screen
+import com.simform.videoimageeditor.ui.ops.video.RemoveAudioRangeScreen
 import com.simform.videoimageeditor.ui.ops.video.RemoveAudioScreen
 import com.simform.videoimageeditor.ui.ops.video.ReverseVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.RotateFlipScreen
 import com.simform.videoimageeditor.ui.ops.video.VideoToGifScreen
 
 /**
- * One route per screen — all 25 operations, plus home (which lists them
+ * One route per screen — all 27 operations, plus home (which lists them
  * all flat, no menu screens).
  */
 object Routes {
@@ -48,12 +50,14 @@ object Routes {
     const val H265_COMPRESS = "h265_compress"
     const val EXTRACT_IMAGES = "extract_images"
     const val EXTRACT_AUDIO = "extract_audio"
+    const val CUT_AUDIO_FROM_VIDEO = "cut_audio_from_video"
     const val FAST_SLOW_VIDEO = "fast_slow_video"
     const val REVERSE_VIDEO = "reverse_video"
     const val FADE_IN_OUT = "fade_in_out"
     const val VIDEO_TO_GIF = "video_to_gif"
     const val ROTATE_FLIP = "rotate_flip"
     const val REMOVE_AUDIO = "remove_audio"
+    const val REMOVE_AUDIO_RANGE = "remove_audio_range"
     const val ASPECT_RATIO = "aspect_ratio"
     const val MERGE_AUDIO_VIDEO = "merge_audio_video"
     const val MERGE_IMAGE_MP3 = "merge_image_mp3"
@@ -82,12 +86,14 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable(Routes.H265_COMPRESS) { H265CompressScreen(onBack = back) }
         composable(Routes.EXTRACT_IMAGES) { ExtractImagesScreen(onBack = back) }
         composable(Routes.EXTRACT_AUDIO) { ExtractAudioScreen(onBack = back) }
+        composable(Routes.CUT_AUDIO_FROM_VIDEO) { CutAudioFromVideoScreen(onBack = back) }
         composable(Routes.FAST_SLOW_VIDEO) { FastSlowVideoScreen(onBack = back) }
         composable(Routes.REVERSE_VIDEO) { ReverseVideoScreen(onBack = back) }
         composable(Routes.FADE_IN_OUT) { FadeInFadeOutScreen(onBack = back) }
         composable(Routes.VIDEO_TO_GIF) { VideoToGifScreen(onBack = back) }
         composable(Routes.ROTATE_FLIP) { RotateFlipScreen(onBack = back) }
         composable(Routes.REMOVE_AUDIO) { RemoveAudioScreen(onBack = back) }
+        composable(Routes.REMOVE_AUDIO_RANGE) { RemoveAudioRangeScreen(onBack = back) }
         composable(Routes.ASPECT_RATIO) { AspectRatioScreen(onBack = back) }
         composable(Routes.MERGE_AUDIO_VIDEO) { MergeAudioVideoScreen(onBack = back) }
         composable(Routes.MERGE_IMAGE_MP3) { MergeImageAndMp3Screen(onBack = back) }
