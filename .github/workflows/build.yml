@@ -1,9 +1,9 @@
 name: Build
 on:
   push:
-    branches: [compose-migration]
+    branches: [compose-migration, main]
   pull_request:
-    branches: [compose-migration]
+    branches: [compose-migration, main]
   workflow_dispatch:
 # A new push cancels the previous run on this branch, so only the
 # newest code builds — no pile-up of stale queued runs.
