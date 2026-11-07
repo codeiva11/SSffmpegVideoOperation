@@ -48,9 +48,23 @@ import com.simform.videoimageeditor.ui.updater.installApk
  * (Android 11+) or the legacy write permission (older Android).
  *
  * On launch the in-app updater checks the latest GitHub release and offers
- * "Install Update" when a newer build exists.
+ * "Install Update" when a newer build exists — and it re-checks every time
+ * the app returns to the foreground, so a build published while the app
+ * was already open is found too (the launch-only check never saw it).
  */
 class MainActivity : ComponentActivity() {
+    /**
+     * Increments on every onResume (including the first one, right after
+     * onCreate). UpdateDialog observes it and re-checks for updates when
+     * the app returns to the foreground — event-driven, no polling timer.
+     */
+    private var resumeCount by mutableStateOf(0)
+
+    override fun onResume() {
+        super.onResume()
+        resumeCount++
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Lets the operation ViewModels start the background-encode
@@ -115,7 +129,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    UpdateDialog()
+                    UpdateDialog(resumeSignal = resumeCount)
 
                     val navController = rememberNavController()
                     AppNavHost(navController)
@@ -129,24 +143,60 @@ class MainActivity : ComponentActivity() {
  * popup appears only once the APK is downloaded and checksum-verified —
  * so tapping Install Update installs at once, with no waiting. A failed
  * download stays silent (no popup at all). A cached verified APK is
- * reused, so tapping Later does not re-download on the next launch. */
+ * reused, so tapping Later does not re-download on the next launch.
+ *
+ * The check runs on launch AND every time the app returns to the
+ * foreground (resumeSignal changes): the launch-only check never saw a
+ * build published while the app was already open, so the popup never
+ * came — the same flaw StreamCloud fixed by re-checking on resume.
+ * Guards: a check already in flight is not started twice; a popup
+ * already showing is not re-triggered; a release dismissed in this
+ * session (Later / dismiss / Install) does not pop up again until a
+ * NEWER release appears. Silent-download-first, SHA-256 fail-closed
+ * verification, the "Install Update" dialog and cached-APK reuse are
+ * all unchanged. */
 @Composable
-private fun UpdateDialog() {
+private fun UpdateDialog(resumeSignal: Int) {
     val context = LocalContext.current
     var update by remember { mutableStateOf<UpdateInfo?>(null) }
     var readyApk by remember { mutableStateOf<File?>(null) }
+    // Tag dismissed in this session — a newer tag still shows.
+    var dismissedTag by remember { mutableStateOf<String?>(null) }
+    var checking by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val info = checkForUpdate() ?: return@LaunchedEffect
-        update = info
-        readyApk = verifiedCachedApk(context, info)
-            ?: downloadAndVerify(context, info) {}
+    suspend fun runCheck() {
+        if (checking) return
+        // update is only set once the APK is downloaded + verified, so
+        // non-null here means the popup is already showing.
+        if (update != null) return
+        checking = true
+        try {
+            val info = checkForUpdate() ?: return
+            if (info.tag == dismissedTag) return
+            val apk = verifiedCachedApk(context, info)
+                ?: downloadAndVerify(context, info) {}
+            if (apk != null) {
+                update = info
+                readyApk = apk
+            }
+            // apk == null (download/verify failed): stay silent; the
+            // next resume (or relaunch) retries, as before.
+        } finally {
+            checking = false
+        }
     }
+
+    LaunchedEffect(Unit) { runCheck() }
+    LaunchedEffect(resumeSignal) { runCheck() }
 
     val info = update ?: return
     val apk = readyApk ?: return
     AlertDialog(
-        onDismissRequest = { update = null },
+        onDismissRequest = {
+            dismissedTag = info.tag
+            update = null
+            readyApk = null
+        },
         title = { Text("Install Update") },
         text = {
             Text(
@@ -156,12 +206,18 @@ private fun UpdateDialog() {
         },
         confirmButton = {
             TextButton(onClick = {
+                dismissedTag = info.tag
                 update = null
+                readyApk = null
                 installApk(context, apk)
             }) { Text("Install Update") }
         },
         dismissButton = {
-            TextButton(onClick = { update = null }) { Text("Later") }
+            TextButton(onClick = {
+                dismissedTag = info.tag
+                update = null
+                readyApk = null
+            }) { Text("Later") }
         }
     )
 }
