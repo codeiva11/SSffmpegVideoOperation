@@ -65,14 +65,20 @@ class ReverseVideoViewModel :
             is ReverseVideoEvent.Reverse -> {
                 val input = state.value.inputPath ?: return
                 setState { copy(isRunning = true, log = "", outputPath = event.outputPath, error = null) }
-                val query = queries.videoReverse(input, state.value.withAudio, event.outputPath)
-                executeQuery(
-                    query,
-                    onLog = { onEvent(ReverseVideoEvent.LogReceived(it.text)) },
-                    onSuccess = { onEvent(ReverseVideoEvent.Succeeded) },
-                    onCancel = { setState { copy(isRunning = false) } },
-                    onFailed = { onEvent(ReverseVideoEvent.Failed) }
-                )
+                val withAudio = state.value.withAudio
+                // videoReverse probes the input audio bitrate when audio
+                // is reversed (FFprobeKit blocks), so the query is built
+                // off the main thread — same pattern as the H.265 screen.
+                Thread {
+                    val query = queries.videoReverse(input, withAudio, event.outputPath)
+                    executeQuery(
+                        query,
+                        onLog = { onEvent(ReverseVideoEvent.LogReceived(it.text)) },
+                        onSuccess = { onEvent(ReverseVideoEvent.Succeeded) },
+                        onCancel = { setState { copy(isRunning = false) } },
+                        onFailed = { onEvent(ReverseVideoEvent.Failed) }
+                    )
+                }.start()
             }
             ReverseVideoEvent.Cancel -> {
                 cancelRunning()

@@ -14,6 +14,13 @@ public class FFmpegQueryExtension {
      * startTime = 00:00:00 HH:MM:SS
      * endTime = 00:00:00 HH:MM:SS
      */
+    /**
+     * Frame-accurate cut (seek after -i, so the video is re-encoded).
+     * Video is H.265 HEVC at CRF 28 — the Fast profile's quality: about
+     * H.264 CRF 23 quality at half the size — with -tag:v hvc1. Audio
+     * is copied untouched (-c:a copy): a cut does not change the audio,
+     * so re-encoding it would only lose quality.
+     */
     fun cutVideo(inputVideoPath: String, startTime: String?, endTime: String?, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
@@ -25,8 +32,14 @@ public class FFmpegQueryExtension {
             add(endTime.toString())
             add("-r")
             add("$FRAME_RATE")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
+            add("-c:a")
+            add("copy")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -53,8 +66,12 @@ public class FFmpegQueryExtension {
             add("format=yuv420p,$fade")
             add("-t")
             add("$second")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -73,8 +90,14 @@ public class FFmpegQueryExtension {
             add(imageInput)
             add("-filter_complex")
             add("overlay=$posX:$posY")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
+            add("-c:a")
+            add("copy")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -91,10 +114,14 @@ public class FFmpegQueryExtension {
             add(inputVideo)
             add("-vf")
             add("drawtext=text='$textInput':fontfile=$fontPath:x=$posX:y=$posY:fontsize=$fontSize:fontcolor=$fontcolor${borderQuery.trim()}")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
             add("-c:a")
             add("copy")
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -159,6 +186,20 @@ public class FFmpegQueryExtension {
         return getResult(inputs, query, queryAudio, paths, output)
     }
 
+    /**
+     * Video is H.265 HEVC at CRF 28 (-tag:v hvc1) — the Fast profile's
+     * quality — in every operation that re-encodes video. Audio is
+     * copied untouched wherever the operation does not change it
+     * (-c:a copy); where audio must be re-encoded it follows the H.265
+     * rule: AAC at input bitrate + 64k, capped at 320k, 192k fallback
+     * (see audioBitrateKbps). The multi-input concat below is the one
+     * exception: with N inputs there is no single input bitrate to
+     * probe, so it uses the rule's 192k fallback directly.
+     */
+    private fun audioBitrateKbps(inputPath: String): Int {
+        return probeAudioBitrateKbps(inputPath)?.let { minOf(it + 64, 320) } ?: 192
+    }
+
     private fun getResult(inputs: java.util.ArrayList<String>, query: String?, queryAudio: String?, paths: ArrayList<Paths>, output: String): Array<String> {
         inputs.apply {
             add("-f")
@@ -173,8 +214,16 @@ public class FFmpegQueryExtension {
             add("[v]")
             add("-map")
             add("[a]")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
+            add("-c:a")
+            add("aac")
+            add("-b:a")
+            add("192k")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -324,6 +373,14 @@ public class FFmpegQueryExtension {
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Fast/slow motion: video is H.265 HEVC at CRF 28 (-tag:v hvc1)
+     * instead of the old MPEG-4 at 2097k. Audio goes through atempo,
+     * so it is re-encoded with the H.265 audio rule (input + 64k, max
+     * 320k, 192k fallback). Probing blocks — callers must build this
+     * query off the main thread (FastSlowVideoViewModel does).
+     * -r 60 is kept exactly as before.
+     */
     fun videoMotion(inputVideo: String, output: String, setpts: Double, atempo: Double): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
@@ -336,19 +393,30 @@ public class FFmpegQueryExtension {
             add("[v]")
             add("-map")
             add("[a]")
-            add("-b:v")
-            add("2097k")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
+            add("-c:a")
+            add("aac")
+            add("-b:a")
+            add("${audioBitrateKbps(inputVideo)}k")
             add("-r")
             add("60")
-            add("-vcodec")
-            add("mpeg4")
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Reverse: video is H.265 HEVC at CRF 28 (-tag:v hvc1). With audio
+     * reversed, audio is re-encoded with the H.265 audio rule (probing
+     * blocks — callers must build this query off the main thread,
+     * ReverseVideoViewModel does); without audio the stream is dropped
+     * (-an) as before.
+     */
     fun videoReverse(inputVideo: String, isWithAudioReverse: Boolean, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
@@ -359,13 +427,27 @@ public class FFmpegQueryExtension {
                 add("reverse")
                 add("-af")
                 add("areverse")
+                add("-c:v")
+                add("libx265")
+                add("-crf")
+                add("28")
+                add("-tag:v")
+                add("hvc1")
+                add("-c:a")
+                add("aac")
+                add("-b:a")
+                add("${audioBitrateKbps(inputVideo)}k")
             } else {
                 add("-an")
                 add("-vf")
                 add("reverse")
+                add("-c:v")
+                add("libx265")
+                add("-crf")
+                add("28")
+                add("-tag:v")
+                add("hvc1")
             }
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -381,20 +463,31 @@ public class FFmpegQueryExtension {
             add("copy")
             add("-vf")
             add("fade=t=in:st=0:d=$fadeInEndSeconds,fade=t=out:st=${duration - fadeOutStartSeconds}:d=$fadeOutStartSeconds")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * GIF with a proper palette: the old command had no palette at all,
+     * so FFmpeg used a single fixed 256-colour palette and the GIF came
+     * out washed out. This is the FFmpeg Wiki's single-pass high-quality
+     * GIF recipe — split the stream, generate a palette from this video,
+     * use it — same single invocation, same fps and resolution.
+     */
     fun convertVideoToGIF(inputVideo: String, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
             add("-i")
             add(inputVideo)
-            add("-preset")
-            add("ultrafast")
+            add("-vf")
+            add("split[s0][s1];[s0]palettegen=max_colors=256[p];[s1][p]paletteuse")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -431,8 +524,14 @@ public class FFmpegQueryExtension {
             add(inputVideo)
             add("-vf")
             add("transpose=$degree")
-            add("-preset")
-            add("ultrafast")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
+            add("-c:a")
+            add("copy")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -462,14 +561,19 @@ public class FFmpegQueryExtension {
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Removing audio needs no video re-encode at all: stream copy is
+     * instant and lossless. The old command re-encoded the whole video
+     * at ultrafast for nothing — quality loss and a slow encode.
+     */
     fun removeAudioFromVideo(inputVideo: String, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
             add("-i")
             add(inputVideo)
+            add("-c:v")
+            add("copy")
             add("-an")
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
@@ -486,24 +590,33 @@ public class FFmpegQueryExtension {
             add("-i")
             add(inputAudio)
             add("-shortest")
+            add("-c:v")
+            add("libx265")
+            add("-crf")
+            add("28")
+            add("-tag:v")
+            add("hvc1")
             add("-c:a")
             add("copy")
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))
     }
 
+    /**
+     * Aspect ratio is container metadata only — no pixel changes — so
+     * stream copy does it instantly and losslessly. The old command
+     * re-encoded the whole video at ultrafast for nothing.
+     */
     fun applyRatio(inputVideo: String, ratio: String, output: String): Array<String> {
         val inputs: ArrayList<String> = ArrayList()
         inputs.apply {
             add("-i")
             add(inputVideo)
+            add("-c")
+            add("copy")
             add("-aspect")
             add(ratio)
-            add("-preset")
-            add("ultrafast")
             add(output)
         }
         return inputs.toArray(arrayOfNulls<String>(inputs.size))

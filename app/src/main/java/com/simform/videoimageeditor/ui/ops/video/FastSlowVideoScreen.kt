@@ -68,14 +68,19 @@ class FastSlowVideoViewModel :
                 setState { copy(isRunning = true, log = "", outputPath = event.outputPath, error = null) }
                 val setpts = if (state.value.isFast) 0.5 else 2.0
                 val atempo = if (state.value.isFast) 2.0 else 0.5
-                val query = queries.videoMotion(input, event.outputPath, setpts, atempo)
-                executeQuery(
-                    query,
-                    onLog = { onEvent(FastSlowVideoEvent.LogReceived(it.text)) },
-                    onSuccess = { onEvent(FastSlowVideoEvent.Succeeded) },
-                    onCancel = { setState { copy(isRunning = false) } },
-                    onFailed = { onEvent(FastSlowVideoEvent.Failed) }
-                )
+                // videoMotion probes the input audio bitrate (FFprobeKit
+                // blocks), so the query is built off the main thread —
+                // same pattern as the H.265 screen.
+                Thread {
+                    val query = queries.videoMotion(input, event.outputPath, setpts, atempo)
+                    executeQuery(
+                        query,
+                        onLog = { onEvent(FastSlowVideoEvent.LogReceived(it.text)) },
+                        onSuccess = { onEvent(FastSlowVideoEvent.Succeeded) },
+                        onCancel = { setState { copy(isRunning = false) } },
+                        onFailed = { onEvent(FastSlowVideoEvent.Failed) }
+                    )
+                }.start()
             }
             FastSlowVideoEvent.Cancel -> {
                 cancelRunning()
