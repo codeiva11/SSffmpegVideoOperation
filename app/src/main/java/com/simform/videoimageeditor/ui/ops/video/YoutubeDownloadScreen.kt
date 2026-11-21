@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.simform.videoimageeditor.R
 import com.simform.videoimageeditor.ui.common.ErrorText
@@ -27,13 +29,14 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.common.TextField
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.service.EncodeService
+import com.simform.videoimageeditor.ui.service.YoutubeDownloadRunner
 import com.simform.videooperations.Common
 import com.simform.videooperations.FFmpegQueryExtension
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.abs
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.downloader.Downloader
@@ -61,10 +64,23 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
  * YouTube puts in the combined file — no language choice there.
  *
  * Download and convert run under EncodeService (foreground + wake
- * lock), so they survive the screen turning off. Download resumes
- * with a Range header when it is interrupted. "Together" here means
- * one automatic flow, not a live pipe: piping a live download into
- * the encoder would lose resume and fail the whole job on any stall.
+ * lock), so they survive the screen turning off AND the app being
+ * minimised: one foreground session is held from the Download tap
+ * until the final success / failure / cancel, with no stop/start
+ * gaps between download, merge and convert (a step that re-started
+ * the service from the background could be refused by Android 12+,
+ * and the process could be killed in the gap). The download thread
+ * itself is owned by YoutubeDownloadRunner in the service layer,
+ * not by this ViewModel, so it keeps running when the screen is
+ * gone. Download resumes with a Range header when it is
+ * interrupted, and the work file is named from the video (title +
+ * video id + height), never a timestamp — so re-tapping Download
+ * for the same video + quality continues the same partial file
+ * instead of starting over. The in-progress job (video, height,
+ * quality) is also saved, so re-opening this screen after the
+ * process died offers the same resume. "Together" here means one
+ * automatic flow, not a live pipe: piping a live download into the
+ * encoder would lose resume and fail the whole job on any stall.
  * H.265 on the phone is slow software encoding — a long video takes
  * a while. Once the H.265 convert succeeds, the original download
  * (the downloaded video file, plus the merged file and audio file
@@ -89,6 +105,7 @@ enum class YoutubePhase {
 data class YoutubeDownloadState(
     val url: String = "",
     val title: String? = null,
+    val videoId: String? = null,
     val duration: String? = null,
     val options: List<YoutubeQualityOption> = emptyList(),
     val selected: YoutubeQualityOption? = null,
@@ -104,6 +121,7 @@ data class YoutubeDownloadState(
     val deleteOriginal: Boolean = false,
     val originalDeleted: Boolean = false,
     val isRunning: Boolean = false,
+    val resumeAvailable: Boolean = false,
     val error: String? = null
 )
 
@@ -113,7 +131,8 @@ sealed interface YoutubeDownloadEvent {
     data class FormatsFetched(
         val title: String,
         val duration: String?,
-        val options: List<YoutubeQualityOption>
+        val options: List<YoutubeQualityOption>,
+        val videoId: String?
     ) : YoutubeDownloadEvent
 
     data class QualitySelected(val option: YoutubeQualityOption) : YoutubeDownloadEvent
@@ -172,32 +191,56 @@ class YoutubeDownloadViewModel :
     OperationViewModel<YoutubeDownloadState, YoutubeDownloadEvent>(YoutubeDownloadState()) {
     private val queries = FFmpegQueryExtension()
 
-    @Volatile
-    private var cancelled = false
+    // Resume for a download that was interrupted by the process dying
+    // (or by the screen being left and re-opened): the video + height
+    // the last Download tap was working on. Consumed when formats are
+    // fetched, so the same height is pre-selected.
+    private var pendingResumeHeight: Int? = null
+    private var pendingResumeCrf: H265Quality? = null
 
-    @Volatile
-    private var activeConnection: HttpURLConnection? = null
-
-    @Volatile
-    private var lastProgressPercent = -1
+    init {
+        restorePendingJob()
+    }
 
     override fun onEvent(event: YoutubeDownloadEvent) {
         when (event) {
-            is YoutubeDownloadEvent.UrlChanged -> setState { copy(url = event.url, error = null) }
+            is YoutubeDownloadEvent.UrlChanged -> {
+                pendingResumeHeight = null
+                pendingResumeCrf = null
+                setState { copy(url = event.url, error = null, resumeAvailable = false) }
+            }
             YoutubeDownloadEvent.FetchFormats -> fetchFormats()
             is YoutubeDownloadEvent.FormatsFetched -> {
-                val default = event.options.firstOrNull { it.audioUrl == null && it.height <= 720 }
+                val resumeHeight = pendingResumeHeight
+                val resumeCrf = pendingResumeCrf
+                pendingResumeHeight = null
+                pendingResumeCrf = null
+                val default = if (resumeHeight != null) {
+                    event.options.firstOrNull { it.height == resumeHeight }
+                } else {
+                    null
+                }
+                    ?: event.options.firstOrNull { it.audioUrl == null && it.height <= 720 }
                     ?: event.options.firstOrNull { it.audioUrl == null }
                     ?: event.options.firstOrNull()
+                val resumed = resumeHeight != null && default?.height == resumeHeight
                 setState {
                     copy(
                         title = event.title,
+                        videoId = event.videoId,
                         duration = event.duration,
                         options = event.options,
                         selected = default,
+                        quality = resumeCrf ?: quality,
                         phase = YoutubePhase.IDLE,
                         isRunning = false,
-                        log = "",
+                        resumeAvailable = resumed,
+                        log = if (resumed) {
+                            "Pichhla download mila — ${default?.height}p resume hoga, " +
+                                "adhoora file wahin se aage badhega"
+                        } else {
+                            ""
+                        },
                         error = null
                     )
                 }
@@ -216,6 +259,11 @@ class YoutubeDownloadViewModel :
             is YoutubeDownloadEvent.DownloadFinished -> onDownloadFinished(event)
             is YoutubeDownloadEvent.ConvertReady -> startConvert(event.inputPath)
             YoutubeDownloadEvent.Succeeded -> {
+                // Final outcome: end the foreground session held since
+                // the Download tap, and forget the saved in-progress job.
+                YoutubeDownloadRunner.chainActive = false
+                EncodeService.stop()
+                clearJob()
                 setState {
                     copy(isRunning = false, phase = YoutubePhase.DONE, log = "Done")
                 }
@@ -223,8 +271,16 @@ class YoutubeDownloadViewModel :
                 // away. Only here, on success — never on failure or cancel.
                 deleteOriginal(true)
             }
-            is YoutubeDownloadEvent.Failed -> setState {
-                copy(isRunning = false, error = event.message)
+            is YoutubeDownloadEvent.Failed -> {
+                // Final outcome: end the foreground session (a no-op
+                // when the failure came from fetching formats, where no
+                // session was started) and forget the saved job.
+                YoutubeDownloadRunner.chainActive = false
+                EncodeService.stop()
+                clearJob()
+                setState {
+                    copy(isRunning = false, error = event.message)
+                }
             }
             YoutubeDownloadEvent.Cancel -> cancelAll()
         }
@@ -280,7 +336,8 @@ class YoutubeDownloadViewModel :
                     YoutubeDownloadEvent.FormatsFetched(
                         info.name ?: "YouTube video",
                         duration,
-                        options
+                        options,
+                        info.id
                     )
                 )
             } catch (e: Exception) {
@@ -342,8 +399,32 @@ class YoutubeDownloadViewModel :
 
     private fun startDownload(outputPath: String) {
         val option = state.value.selected ?: return
-        val base = sanitizeTitle(state.value.title) + "_" + System.currentTimeMillis() / 1000
-        cancelled = false
+        // A download is already running (this screen was re-opened
+        // mid-download): re-attach to it instead of starting a second.
+        if (YoutubeDownloadRunner.isRunning) {
+            attachToRunner()
+            return
+        }
+        // A merge/convert from a previous screen is still running in
+        // this process: starting another job would fight over the
+        // same files, so refuse until it finishes.
+        if (YoutubeDownloadRunner.chainActive) {
+            setState {
+                copy(
+                    error = "Pehla video abhi merge/convert ho raha hai — " +
+                        "uske khatm hone ka wait karo"
+                )
+            }
+            return
+        }
+        // Stable work file: title + video id + height, never a
+        // timestamp — so re-tapping Download for the same video +
+        // quality continues the SAME partial file (Range resume)
+        // instead of starting a new file from zero.
+        val videoId = state.value.videoId?.takeIf { it.isNotBlank() }
+            ?: "u" + abs(state.value.url.hashCode()).toString()
+        val base = sanitizeTitle(state.value.title) + "_" + videoId +
+            "_" + option.height + "p"
         setState {
             copy(
                 isRunning = true,
@@ -351,56 +432,42 @@ class YoutubeDownloadViewModel :
                 log = "",
                 outputPath = outputPath,
                 workBase = base,
+                videoId = videoId,
                 downloadProgress = 0,
                 downloadedBytes = 0L,
                 totalBytes = 0L,
-                phase = YoutubePhase.DOWNLOADING
+                phase = YoutubePhase.DOWNLOADING,
+                resumeAvailable = false
             )
         }
+        saveJob(PHASE_DOWNLOADING)
+        // One foreground session for the whole chain — held from here
+        // until the final success / failure / cancel, with no
+        // stop/start gaps between download, merge and convert.
         EncodeService.start("Downloading YouTube video")
-        Thread {
-            val dir = File(outputPath).parentFile
-            if (dir == null) {
-                EncodeService.stop()
-                onEvent(YoutubeDownloadEvent.Failed("Output folder nahi mila"))
-                return@Thread
-            }
-            val videoFile = File(dir, base + "_original." + option.videoSuffix)
-            onEvent(YoutubeDownloadEvent.LogReceived("Downloading video…"))
-            if (!downloadFile(option.videoUrl, videoFile)) {
-                EncodeService.stop()
-                if (cancelled) return@Thread
-                onEvent(
-                    YoutubeDownloadEvent.Failed(
-                        "Download beech me ruk gaya — dobara try karo, download wahin se resume hoga"
-                    )
-                )
-                return@Thread
-            }
-            var audioFile: File? = null
-            if (option.audioUrl != null) {
-                audioFile = File(dir, base + "_audio.m4a")
-                onEvent(YoutubeDownloadEvent.LogReceived("Downloading audio…"))
-                if (!downloadFile(option.audioUrl, audioFile)) {
-                    EncodeService.stop()
-                    if (cancelled) return@Thread
-                    onEvent(
-                        YoutubeDownloadEvent.Failed(
-                            "Audio download beech me ruk gaya — dobara try karo, download wahin se resume hoga"
-                        )
-                    )
-                    return@Thread
-                }
-            }
-            EncodeService.stop()
-            if (cancelled) return@Thread
-            onEvent(
-                YoutubeDownloadEvent.DownloadFinished(
-                    videoFile.absolutePath,
-                    audioFile?.absolutePath
-                )
+        val dir = File(outputPath).parentFile
+        if (dir == null) {
+            onEvent(YoutubeDownloadEvent.Failed("Output folder nahi mila"))
+            return
+        }
+        val videoFile = File(dir, base + "_original." + option.videoSuffix)
+        val audioFile =
+            if (option.audioUrl != null) File(dir, base + "_audio.m4a") else null
+        if (!YoutubeDownloadRunner.start(
+                YoutubeDownloadRunner.Params(
+                    option.videoUrl,
+                    option.audioUrl,
+                    videoFile,
+                    audioFile
+                ),
+                downloadListener()
             )
-        }.start()
+        ) {
+            // Raced with another start: give the session back and
+            // attach to the running job instead.
+            EncodeService.stop()
+            attachToRunner()
+        }
     }
 
     private fun onDownloadFinished(event: YoutubeDownloadEvent.DownloadFinished) {
@@ -412,18 +479,22 @@ class YoutubeDownloadViewModel :
                 File(output).parent,
                 "${state.value.workBase}_merged.mp4"
             ).absolutePath
+            // From here the merge/convert half of the chain owns the job.
+            YoutubeDownloadRunner.chainActive = true
+            updatePhase(PHASE_MUXING)
             setState { copy(phase = YoutubePhase.MUXING, log = "Merging video and audio…") }
             executeQuery(
                 queries.muxVideoAudio(event.videoPath, audioPath, muxedPath),
                 onLog = { onEvent(YoutubeDownloadEvent.LogReceived(it.text)) },
                 onSuccess = { onEvent(YoutubeDownloadEvent.ConvertReady(muxedPath)) },
-                onCancel = { setState { copy(isRunning = false, phase = YoutubePhase.IDLE) } },
+                onCancel = { onEvent(YoutubeDownloadEvent.Cancel) },
                 onFailed = {
                     onEvent(YoutubeDownloadEvent.Failed("Video aur audio merge nahi hua"))
                 },
                 label = "Merging video and audio"
             )
         } else {
+            YoutubeDownloadRunner.chainActive = true
             onEvent(YoutubeDownloadEvent.ConvertReady(event.videoPath))
         }
     }
@@ -431,6 +502,7 @@ class YoutubeDownloadViewModel :
     private fun startConvert(inputPath: String) {
         val output = state.value.outputPath ?: return
         val quality = state.value.quality
+        updatePhase(PHASE_CONVERTING)
         setState {
             copy(
                 phase = YoutubePhase.CONVERTING,
@@ -441,17 +513,24 @@ class YoutubeDownloadViewModel :
             queries.convertToH265(inputPath, output, quality.crf, quality.preset),
             onLog = { onEvent(YoutubeDownloadEvent.LogReceived(it.text)) },
             onSuccess = { onEvent(YoutubeDownloadEvent.Succeeded) },
-            onCancel = { setState { copy(isRunning = false, phase = YoutubePhase.IDLE) } },
+            onCancel = { onEvent(YoutubeDownloadEvent.Cancel) },
             onFailed = { onEvent(YoutubeDownloadEvent.Failed("H.265 convert fail hua")) },
             label = "Converting to H.265"
         )
     }
 
     private fun cancelAll() {
-        cancelled = true
-        activeConnection?.disconnect()
+        // Guard against the double call: the UI Cancel and the
+        // ffmpeg-cancel callback both end up here.
+        if (!state.value.isRunning && state.value.phase == YoutubePhase.IDLE) return
+        YoutubeDownloadRunner.cancel()
         cancelRunning()
+        // Ends the foreground session held since the Download tap
+        // (a no-op when the cancel came from fetching formats, where
+        // no session was started).
+        YoutubeDownloadRunner.chainActive = false
         EncodeService.stop()
+        clearJob()
         setState { copy(isRunning = false, phase = YoutubePhase.IDLE) }
     }
 
@@ -473,75 +552,142 @@ class YoutubeDownloadViewModel :
         }.start()
     }
 
-    /**
-     * Resumable download: an interrupted file continues with a Range
-     * header where it stopped; when the server ignores Range (plain
-     * 200) the file restarts from zero. Returns false on any failure
-     * or when the run was cancelled.
-     */
-    private fun downloadFile(url: String, dest: File): Boolean {
-        lastProgressPercent = -1
-        var connection: HttpURLConnection? = null
-        try {
-            val existing = if (dest.exists()) dest.length() else 0L
-            connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15_000
-                readTimeout = 120_000
-                setRequestProperty(
-                    "User-Agent",
-                    "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
-                )
-                if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
-            }
-            activeConnection = connection
-            val code = connection.responseCode
-            if (code != HttpURLConnection.HTTP_OK &&
-                code != HttpURLConnection.HTTP_PARTIAL
-            ) {
-                return false
-            }
-            val append = code == HttpURLConnection.HTTP_PARTIAL && existing > 0
-            if (!append && dest.exists()) dest.delete()
-            val total = if (append) {
-                connection.contentLengthLong + existing
-            } else {
-                connection.contentLengthLong
-            }
-            var downloaded = if (append) existing else 0L
-            connection.inputStream.use { input ->
-                FileOutputStream(dest, append).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var read = 0
-                    while (!cancelled && input.read(buffer).also { read = it } != -1) {
-                        output.write(buffer, 0, read)
-                        downloaded += read
-                        val percent = if (total > 0) {
-                            ((downloaded * 100) / total).toInt().coerceIn(0, 100)
-                        } else {
-                            0
-                        }
-                        // One state update per percent point — a 64 KB chunk
-                        // loop would otherwise recompose thousands of times.
-                        if (percent != lastProgressPercent) {
-                            lastProgressPercent = percent
-                            onEvent(
-                                YoutubeDownloadEvent.DownloadProgress(percent, downloaded, total)
-                            )
-                        }
-                    }
-                }
-            }
-            return !cancelled
-        } catch (_: Exception) {
-            return false
-        } finally {
-            if (activeConnection === connection) activeConnection = null
-            try {
-                connection?.disconnect()
-            } catch (_: Exception) {
-            }
+    /** Listener that funnels the runner's callbacks into state events. */
+    private fun downloadListener() = object : YoutubeDownloadRunner.Listener {
+        override fun onProgress(percent: Int, downloaded: Long, total: Long) {
+            onEvent(YoutubeDownloadEvent.DownloadProgress(percent, downloaded, total))
         }
+
+        override fun onLog(text: String) {
+            onEvent(YoutubeDownloadEvent.LogReceived(text))
+        }
+
+        override fun onFinished(videoPath: String, audioPath: String?) {
+            onEvent(YoutubeDownloadEvent.DownloadFinished(videoPath, audioPath))
+        }
+
+        override fun onFailed(message: String) {
+            onEvent(YoutubeDownloadEvent.Failed(message))
+        }
+
+        override fun onCancelled() {
+            onEvent(YoutubeDownloadEvent.Cancel)
+        }
+    }
+
+    /**
+     * Re-attaches this screen to a download that is already running
+     * (same process, screen re-opened): the runner replays its
+     * current progress through the fresh listener at once.
+     */
+    private fun attachToRunner() {
+        setState {
+            copy(
+                isRunning = true,
+                phase = YoutubePhase.DOWNLOADING,
+                log = "Download background me chal raha hai…"
+            )
+        }
+        YoutubeDownloadRunner.attach(downloadListener())
+    }
+
+    // ---- In-progress job, saved so a killed process can resume ----
+    // SharedPreferences in the app-private store: just the video, the
+    // chosen height/quality and the work file — enough to re-fetch
+    // formats and continue the same partial file. No new permission.
+
+    private fun prefs(): SharedPreferences? {
+        val context = EncodeService.appContext ?: return null
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun saveJob(phase: String) {
+        val state = state.value
+        val option = state.selected ?: return
+        prefs()?.edit()
+            ?.putString(KEY_URL, state.url)
+            ?.putString(KEY_VIDEO_ID, state.videoId)
+            ?.putString(KEY_TITLE, state.title)
+            ?.putInt(KEY_HEIGHT, option.height)
+            ?.putString(KEY_CRF, state.quality.name)
+            ?.putString(KEY_PHASE, phase)
+            ?.putString(KEY_OUTPUT_PATH, state.outputPath)
+            ?.putString(KEY_WORK_BASE, state.workBase)
+            ?.apply()
+    }
+
+    private fun updatePhase(phase: String) {
+        prefs()?.edit()?.putString(KEY_PHASE, phase)?.apply()
+    }
+
+    private fun clearJob() {
+        prefs()?.edit()?.clear()?.apply()
+    }
+
+    /**
+     * Runs once when this ViewModel is created (screen opened). When
+     * a previous Download tap left a saved in-progress job:
+     * - a download is still running in this process -> re-attach to
+     *   it and show its progress;
+     * - a merge/convert is still running in this process -> say so
+     *   and don't start anything new;
+     * - otherwise the process died mid-job -> re-fetch the formats
+     *   and pre-select the same height, so the same Download tap
+     *   resumes the same partial file instead of starting over.
+     */
+    private fun restorePendingJob() {
+        val p = prefs() ?: return
+        val url = p.getString(KEY_URL, null) ?: return
+        val videoId = p.getString(KEY_VIDEO_ID, null)
+        val title = p.getString(KEY_TITLE, null)
+        val height = p.getInt(KEY_HEIGHT, -1).takeIf { it > 0 }
+        val crf = p.getString(KEY_CRF, null)
+            ?.let { runCatching { H265Quality.valueOf(it) }.getOrNull() }
+        val outputPath = p.getString(KEY_OUTPUT_PATH, null)
+        val workBase = p.getString(KEY_WORK_BASE, null)
+        pendingResumeHeight = height
+        pendingResumeCrf = crf
+        if (YoutubeDownloadRunner.isRunning) {
+            setState {
+                copy(
+                    url = url,
+                    title = title,
+                    videoId = videoId,
+                    outputPath = outputPath,
+                    workBase = workBase,
+                    quality = crf ?: quality,
+                    isRunning = true,
+                    phase = YoutubePhase.DOWNLOADING,
+                    log = "Download background me chal raha hai…"
+                )
+            }
+            attachToRunner()
+            return
+        }
+        if (YoutubeDownloadRunner.chainActive) {
+            setState {
+                copy(
+                    url = url,
+                    title = title,
+                    videoId = videoId,
+                    log = "Pehla video abhi merge/convert ho raha hai — " +
+                        "uske khatm hone ka wait karo"
+                )
+            }
+            return
+        }
+        setState {
+            copy(
+                url = url,
+                title = title,
+                videoId = videoId,
+                outputPath = outputPath,
+                workBase = workBase,
+                quality = crf ?: quality,
+                log = "Pichhla download mila — details nikaal rahe hain, resume hoga…"
+            )
+        }
+        fetchFormats()
     }
 
     private fun sanitizeTitle(title: String?): String {
@@ -553,6 +699,19 @@ class YoutubeDownloadViewModel :
     }
 
     companion object {
+        private const val PREFS_NAME = "youtube_download_job"
+        private const val KEY_URL = "url"
+        private const val KEY_VIDEO_ID = "video_id"
+        private const val KEY_TITLE = "title"
+        private const val KEY_HEIGHT = "height"
+        private const val KEY_CRF = "crf"
+        private const val KEY_PHASE = "phase"
+        private const val KEY_OUTPUT_PATH = "output_path"
+        private const val KEY_WORK_BASE = "work_base"
+        private const val PHASE_DOWNLOADING = "downloading"
+        private const val PHASE_MUXING = "muxing"
+        private const val PHASE_CONVERTING = "converting"
+
         @Volatile
         private var newPipeInit = false
 
@@ -589,9 +748,12 @@ fun YoutubeDownloadScreen(
                 "account needed. 720p and below download as one file; " +
                 "1080p and above download video and audio separately " +
                 "and merge first. H.265 encoding on the phone is slow — " +
-                "a long video takes a while, so keep the app running. " +
-                "After a successful convert the original download is " +
-                "deleted automatically — only the H.265 file stays.",
+                "a long video takes a while. Download and convert keep " +
+                "running in the background when you minimise the app, " +
+                "and an interrupted download resumes from where it " +
+                "stopped instead of starting over. After a successful " +
+                "convert the original download is deleted automatically " +
+                "— only the H.265 file stays.",
             style = MaterialTheme.typography.bodySmall
         )
         TextField(
@@ -676,7 +838,11 @@ fun YoutubeDownloadScreen(
         RunControls(
             running = state.isRunning,
             canRun = state.selected != null,
-            runLabel = "Download + Convert to H.265",
+            runLabel = if (state.resumeAvailable) {
+                "Resume download + Convert to H.265"
+            } else {
+                "Download + Convert to H.265"
+            },
             onRun = {
                 viewModel.onEvent(
                     YoutubeDownloadEvent.Download(

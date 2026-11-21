@@ -34,6 +34,19 @@ import com.simform.videoimageeditor.R
  * cancel. START_NOT_STICKY: if the system kills it, the encode is gone
  * and the user re-runs it — no silent restart.
  *
+ * Sessions: several steps of one job (YouTube download -> merge ->
+ * convert) each call start()/stop(), and the service must stay
+ * foreground for the WHOLE chain, not flap off between steps. start()
+ * therefore only sends the start intent when the session count goes
+ * 0 -> 1, and stop() only stops the service when the count drops
+ * back to 0. A step that starts while another session is already
+ * held just bumps the counter — no new start intent, so a step that
+ * begins while the app is minimised never hits Android 12+'s rule
+ * against starting a foreground service from the background (the
+ * service is already running). The wake lock is held while the count
+ * is above zero and released when it hits zero or the service is
+ * destroyed.
+ *
  * Type is dataSync (not mediaProcessing: this toolchain's AAPT does not
  * know that value yet and rejects the manifest).
  */
@@ -63,7 +76,11 @@ class EncodeService : Service() {
                 acquireWakeLock()
             }
             ACTION_CANCEL -> {
+                // User tapped Cancel in the notification: drop every
+                // session, stop the YouTube download too, and stop.
+                synchronized(LOCK) { sessionCount = 0 }
                 FFmpegKit.cancel()
+                YoutubeDownloadRunner.cancel()
                 stopSelf()
             }
         }
@@ -142,12 +159,31 @@ class EncodeService : Service() {
         var appContext: Context? = null
             private set
 
+        /**
+         * Sessions held right now (see the class doc). Guarded by LOCK;
+         * every start()/stop() pair keeps it balanced, and a cancel
+         * resets it to zero.
+         */
+        private val LOCK = Any()
+        private var sessionCount = 0
+
         fun init(context: Context) {
             appContext = context.applicationContext
         }
 
+        /**
+         * Starts (or joins) one foreground session. Only the first
+         * session sends the start intent — later ones just bump the
+         * counter while the service is already foreground.
+         */
         fun start(label: String) {
             val context = appContext ?: return
+            val first = synchronized(LOCK) {
+                val wasZero = sessionCount == 0
+                sessionCount++
+                wasZero
+            }
+            if (!first) return
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, EncodeService::class.java).apply {
@@ -157,8 +193,17 @@ class EncodeService : Service() {
             )
         }
 
+        /**
+         * Ends one session; the service stops only when the last
+         * session ends. Safe to call when nothing is running.
+         */
         fun stop() {
             val context = appContext ?: return
+            val last = synchronized(LOCK) {
+                if (sessionCount > 0) sessionCount--
+                sessionCount == 0
+            }
+            if (!last) return
             context.stopService(Intent(context, EncodeService::class.java))
         }
     }
