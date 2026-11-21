@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -63,8 +62,11 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
  * one automatic flow, not a live pipe: piping a live download into
  * the encoder would lose resume and fail the whole job on any stall.
  * H.265 on the phone is slow software encoding — a long video takes
- * a while, and the original download stays next to the output until
- * the user ticks "delete original".
+ * a while. Once the H.265 convert succeeds, the original download
+ * (the downloaded video file, plus the merged file and audio file
+ * when they exist) is deleted automatically, right away — only the
+ * H.265 file stays. The original is never deleted on failure or
+ * cancel.
  */
 data class YoutubeQualityOption(
     val label: String,
@@ -126,7 +128,6 @@ sealed interface YoutubeDownloadEvent {
     data object Succeeded : YoutubeDownloadEvent
     data class Failed(val message: String) : YoutubeDownloadEvent
     data object Cancel : YoutubeDownloadEvent
-    data class DeleteOriginalChanged(val delete: Boolean) : YoutubeDownloadEvent
 }
 
 /** Minimal NewPipe Downloader over plain HttpURLConnection — the app has no OkHttp. */
@@ -209,14 +210,18 @@ class YoutubeDownloadViewModel :
             is YoutubeDownloadEvent.LogReceived -> setState { copy(log = event.text) }
             is YoutubeDownloadEvent.DownloadFinished -> onDownloadFinished(event)
             is YoutubeDownloadEvent.ConvertReady -> startConvert(event.inputPath)
-            YoutubeDownloadEvent.Succeeded -> setState {
-                copy(isRunning = false, phase = YoutubePhase.DONE, log = "Done")
+            YoutubeDownloadEvent.Succeeded -> {
+                setState {
+                    copy(isRunning = false, phase = YoutubePhase.DONE, log = "Done")
+                }
+                // Convert succeeded: delete the original download right
+                // away. Only here, on success — never on failure or cancel.
+                deleteOriginal(true)
             }
             is YoutubeDownloadEvent.Failed -> setState {
                 copy(isRunning = false, error = event.message)
             }
             YoutubeDownloadEvent.Cancel -> cancelAll()
-            is YoutubeDownloadEvent.DeleteOriginalChanged -> deleteOriginal(event.delete)
         }
     }
 
@@ -568,7 +573,9 @@ fun YoutubeDownloadScreen(
                 "account needed. 720p and below download as one file; " +
                 "1080p and above download video and audio separately " +
                 "and merge first. H.265 encoding on the phone is slow — " +
-                "a long video takes a while, so keep the app running.",
+                "a long video takes a while, so keep the app running. " +
+                "After a successful convert the original download is " +
+                "deleted automatically — only the H.265 file stays.",
             style = MaterialTheme.typography.bodySmall
         )
         TextField(
@@ -679,18 +686,6 @@ fun YoutubeDownloadScreen(
             Text(phaseText, style = MaterialTheme.typography.bodyMedium)
         }
         RunStatus(log = state.log, output = state.outputPath, running = state.isRunning)
-        if (state.phase == YoutubePhase.DONE && state.downloadedPath != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = state.deleteOriginal,
-                    enabled = !state.originalDeleted,
-                    onCheckedChange = {
-                        viewModel.onEvent(YoutubeDownloadEvent.DeleteOriginalChanged(it))
-                    }
-                )
-                Text("Delete original download (keep only the H.265 file)")
-            }
-        }
         if (state.originalDeleted) {
             Text("Original download deleted.")
         }
