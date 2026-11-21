@@ -112,8 +112,16 @@ object Common {
      * in Files and survive an uninstall. That folder needs all-files access
      * (MANAGE_EXTERNAL_STORAGE on Android 11+); when it cannot be created the
      * app-private Output folder is used instead so operations still work.
+     *
+     * Video outputs are named after the original input file: pass the input
+     * file's base name (no extension) as [inputName] and the output becomes
+     * "<name>.mp4" instead of "Output<epoch>.mp4". When a file with that
+     * name already exists in the folder it is never overwritten — a counter
+     * is appended ("<name> (1).mp4", then " (2)"...). Audio, image and GIF
+     * outputs ignore [inputName] and keep the old "Output<epoch>" name, as
+     * does a video output with a missing or blank [inputName].
      */
-    fun getFilePath(context: Context, fileExtension: String): String {
+    fun getFilePath(context: Context, fileExtension: String, inputName: String? = null): String {
         val publicDir = File(android.os.Environment.getExternalStorageDirectory(), "Ffmpeg Output")
         val dir = if (publicDir.exists() || publicDir.mkdirs()) {
             publicDir
@@ -139,8 +147,40 @@ object Common {
                 extension = ".mp3"
             }
         }
-        val dest = File(dir.path + File.separator + Common.OUT_PUT_DIR + System.currentTimeMillis().div(1000L) + extension)
+        val dest = if (TextUtils.equals(fileExtension, VIDEO) && !inputName.isNullOrBlank()) {
+            uniqueFile(dir, sanitizeFileName(inputName), extension ?: ".mp4")
+        } else {
+            File(dir.path + File.separator + Common.OUT_PUT_DIR + System.currentTimeMillis().div(1000L) + extension)
+        }
         return dest.absolutePath
+    }
+
+    /**
+     * Strips characters illegal in a file name and trims the result, so a
+     * picked file's name is safe to reuse as an output name. Falls back to
+     * "Output" when nothing usable is left.
+     */
+    fun sanitizeFileName(name: String): String {
+        val clean = name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+            .trim()
+            .trim('.', ' ')
+            .take(100)
+        return clean.ifEmpty { OUT_PUT_DIR }
+    }
+
+    /**
+     * A file in [dir] named "<base><extension>", or "<base> (n)<extension>"
+     * with the lowest free n when that name is already taken — an existing
+     * file is never overwritten.
+     */
+    private fun uniqueFile(dir: File, base: String, extension: String): File {
+        var candidate = File(dir, base + extension)
+        var n = 1
+        while (candidate.exists()) {
+            candidate = File(dir, "$base ($n)$extension")
+            n++
+        }
+        return candidate
     }
 
     @Throws(java.io.IOException::class)

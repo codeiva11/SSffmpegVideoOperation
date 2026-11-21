@@ -769,14 +769,6 @@ class YoutubeDownloadViewModel :
         fetchFormats()
     }
 
-    private fun sanitizeTitle(title: String?): String {
-        val clean = (title ?: "youtube-video")
-            .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
-            .trim()
-            .take(80)
-        return clean.ifEmpty { "youtube-video" }
-    }
-
     companion object {
         private const val PREFS_NAME = "youtube_download_job"
         private const val KEY_URL = "url"
@@ -804,6 +796,14 @@ class YoutubeDownloadViewModel :
             }
         }
     }
+}
+
+private fun sanitizeTitle(title: String?): String {
+    val clean = (title ?: "youtube-video")
+        .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+        .trim()
+        .take(80)
+    return clean.ifEmpty { "youtube-video" }
 }
 
 private fun formatBytes(bytes: Long): String {
@@ -925,7 +925,11 @@ fun YoutubeDownloadScreen(
             onRun = {
                 viewModel.onEvent(
                     YoutubeDownloadEvent.Download(
-                        Common.getFilePath(context, Common.VIDEO)
+                        Common.getFilePath(
+                            context,
+                            Common.VIDEO,
+                            state.title?.let { sanitizeTitle(it) }
+                        )
                     )
                 )
             },

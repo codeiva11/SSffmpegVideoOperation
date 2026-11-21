@@ -16,6 +16,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 import com.simform.videooperations.SizeOfImage
 
@@ -128,7 +129,7 @@ fun ImageToVideoScreen(
             runLabel = stringResource(R.string.create),
             onRun = {
                 viewModel.onEvent(
-                    ImageToVideoEvent.Create(Common.getFilePath(context, Common.VIDEO))
+                    ImageToVideoEvent.Create(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(ImageToVideoEvent.Cancel) }

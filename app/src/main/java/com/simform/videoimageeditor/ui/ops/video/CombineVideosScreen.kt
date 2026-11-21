@@ -16,6 +16,7 @@ import com.simform.videoimageeditor.ui.common.videoDimensions
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 import com.simform.videooperations.Paths
 
@@ -122,7 +123,7 @@ fun CombineVideosScreen(
             runLabel = stringResource(R.string.combine),
             onRun = {
                 viewModel.onEvent(
-                    CombineVideosEvent.Combine(Common.getFilePath(context, Common.VIDEO))
+                    CombineVideosEvent.Combine(Common.getFilePath(context, Common.VIDEO, state.videoPaths.firstOrNull()?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(CombineVideosEvent.Cancel) }

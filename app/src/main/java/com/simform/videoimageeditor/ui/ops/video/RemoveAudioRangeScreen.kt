@@ -19,6 +19,7 @@ import com.simform.videoimageeditor.ui.common.parseHhMmSsToSeconds
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /**
@@ -167,7 +168,7 @@ fun RemoveAudioRangeScreen(
             runLabel = stringResource(R.string.remove_audio),
             onRun = {
                 viewModel.onEvent(
-                    RemoveAudioRangeEvent.Remove(Common.getFilePath(context, Common.VIDEO))
+                    RemoveAudioRangeEvent.Remove(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(RemoveAudioRangeEvent.Cancel) }

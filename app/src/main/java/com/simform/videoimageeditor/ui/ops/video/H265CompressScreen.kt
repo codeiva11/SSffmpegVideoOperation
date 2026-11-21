@@ -171,7 +171,7 @@ fun H265CompressScreen(
             runLabel = stringResource(R.string.compress),
             onRun = {
                 viewModel.onEvent(
-                    H265CompressEvent.Compress(Common.getFilePath(context, Common.VIDEO))
+                    H265CompressEvent.Compress(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(H265CompressEvent.Cancel) }

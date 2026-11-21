@@ -16,6 +16,7 @@ import com.simform.videoimageeditor.ui.common.mediaDurationMs
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /**
@@ -114,7 +115,7 @@ fun FadeInFadeOutScreen(
             runLabel = stringResource(R.string.apply_fade_in_and_fade_out),
             onRun = {
                 viewModel.onEvent(
-                    FadeInFadeOutEvent.ApplyFade(Common.getFilePath(context, Common.VIDEO))
+                    FadeInFadeOutEvent.ApplyFade(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(FadeInFadeOutEvent.Cancel) }

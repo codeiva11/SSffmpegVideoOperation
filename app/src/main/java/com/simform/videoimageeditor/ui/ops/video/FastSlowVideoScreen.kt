@@ -21,6 +21,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /**
@@ -127,7 +128,7 @@ fun FastSlowVideoScreen(
             runLabel = "Apply Motion",
             onRun = {
                 viewModel.onEvent(
-                    FastSlowVideoEvent.ApplyMotion(Common.getFilePath(context, Common.VIDEO))
+                    FastSlowVideoEvent.ApplyMotion(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(FastSlowVideoEvent.Cancel) }

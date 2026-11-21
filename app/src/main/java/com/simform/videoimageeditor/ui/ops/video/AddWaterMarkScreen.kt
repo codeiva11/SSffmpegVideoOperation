@@ -17,6 +17,7 @@ import com.simform.videoimageeditor.ui.common.videoDimensions
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /** MVI port of AddWaterMarkOnVideoActivity: overlay an image on a video. */
@@ -163,7 +164,7 @@ fun AddWaterMarkScreen(
             runLabel = stringResource(R.string.add_water_mark),
             onRun = {
                 viewModel.onEvent(
-                    AddWaterMarkEvent.Add(Common.getFilePath(context, Common.VIDEO))
+                    AddWaterMarkEvent.Add(Common.getFilePath(context, Common.VIDEO, state.videoPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(AddWaterMarkEvent.Cancel) }

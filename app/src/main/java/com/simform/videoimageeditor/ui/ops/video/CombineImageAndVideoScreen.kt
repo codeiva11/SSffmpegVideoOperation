@@ -23,6 +23,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 import com.simform.videooperations.Paths
 
@@ -181,7 +182,7 @@ fun CombineImageAndVideoScreen(
             onRun = {
                 viewModel.onEvent(
                     CombineImageAndVideoEvent.Combine(
-                        Common.getFilePath(context, Common.VIDEO)
+                        Common.getFilePath(context, Common.VIDEO, state.items.firstOrNull { !it.isImageFile }?.filePath?.let { File(it).nameWithoutExtension })
                     )
                 )
             },

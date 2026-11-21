@@ -15,6 +15,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /** Merge-image-and-MP3 screen: one immutable state + one sealed event (MVI). */
@@ -122,7 +123,7 @@ fun MergeImageAndMp3Screen(
             runLabel = stringResource(R.string.merge_image_and_audio),
             onRun = {
                 viewModel.onEvent(
-                    MergeImageAndMp3Event.Merge(Common.getFilePath(context, Common.VIDEO))
+                    MergeImageAndMp3Event.Merge(Common.getFilePath(context, Common.VIDEO, state.imagePath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(MergeImageAndMp3Event.Cancel) }

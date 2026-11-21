@@ -18,6 +18,7 @@ import com.simform.videoimageeditor.ui.common.mediaDurationMs
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /** MVI port of CutVideoUsingTimeActivity: cut a video between two HH:MM:SS times. */
@@ -164,7 +165,7 @@ fun CutVideoScreen(
             runLabel = stringResource(R.string.cut_video),
             onRun = {
                 viewModel.onEvent(
-                    CutVideoEvent.Cut(Common.getFilePath(context, Common.VIDEO))
+                    CutVideoEvent.Cut(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(CutVideoEvent.Cancel) }

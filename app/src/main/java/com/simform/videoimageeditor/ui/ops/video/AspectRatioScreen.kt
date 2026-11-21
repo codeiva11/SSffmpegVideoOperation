@@ -22,6 +22,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /**
@@ -132,7 +133,7 @@ fun AspectRatioScreen(
             runLabel = stringResource(R.string.apply_aspect_ratio),
             onRun = {
                 viewModel.onEvent(
-                    AspectRatioEvent.ApplyRatio(Common.getFilePath(context, Common.VIDEO))
+                    AspectRatioEvent.ApplyRatio(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(AspectRatioEvent.Cancel) }

@@ -24,6 +24,7 @@ import com.simform.videoimageeditor.ui.common.videoDimensions
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /** MVI port of AddTextOnVideoActivity: draw text on a video. */
@@ -185,7 +186,7 @@ fun AddTextScreen(
             onRun = {
                 viewModel.onEvent(
                     AddTextEvent.Add(
-                        outputPath = Common.getFilePath(context, Common.VIDEO),
+                        outputPath = Common.getFilePath(context, Common.VIDEO, state.videoPath?.let { File(it).nameWithoutExtension }),
                         fontPath = Common.getFileFromAssets(context, "little_lord.ttf").absolutePath
                     )
                 )

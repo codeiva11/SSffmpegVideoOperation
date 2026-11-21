@@ -15,6 +15,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /** MVI port of the old RemoveAudioFromVideoActivity: video pick -> removeAudioFromVideo. */
@@ -94,7 +95,7 @@ fun RemoveAudioScreen(
             runLabel = stringResource(R.string.remove_audio),
             onRun = {
                 viewModel.onEvent(
-                    RemoveAudioEvent.Remove(Common.getFilePath(context, Common.VIDEO))
+                    RemoveAudioEvent.Remove(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(RemoveAudioEvent.Cancel) }

@@ -21,6 +21,7 @@ import com.simform.videoimageeditor.ui.common.RunStatus
 import com.simform.videoimageeditor.ui.mvi.OperationViewModel
 import com.simform.videoimageeditor.ui.pick.rememberFilePicker
 import com.simform.videooperations.Common
+import java.io.File
 import com.simform.videooperations.FFmpegQueryExtension
 
 /**
@@ -123,7 +124,7 @@ fun ReverseVideoScreen(
             runLabel = stringResource(R.string.reverse_video),
             onRun = {
                 viewModel.onEvent(
-                    ReverseVideoEvent.Reverse(Common.getFilePath(context, Common.VIDEO))
+                    ReverseVideoEvent.Reverse(Common.getFilePath(context, Common.VIDEO, state.inputPath?.let { File(it).nameWithoutExtension }))
                 )
             },
             onCancel = { viewModel.onEvent(ReverseVideoEvent.Cancel) }
