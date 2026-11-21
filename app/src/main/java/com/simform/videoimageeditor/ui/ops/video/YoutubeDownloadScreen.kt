@@ -571,14 +571,63 @@ class YoutubeDownloadViewModel :
         }
         setState { copy(deleteOriginal = true) }
         Thread {
-            state.value.downloadedPath?.let { File(it).delete() }
+            val deleted = mutableListOf<String>()
+            val failed = mutableListOf<String>()
+            fun tryDelete(file: File) {
+                if (!file.exists()) return
+                if (file.delete()) deleted.add(file.name) else failed.add(file.name)
+            }
+            // Exact deletes for this job's intermediates.
+            state.value.downloadedPath?.let { tryDelete(File(it)) }
             val output = state.value.outputPath
             val base = state.value.workBase
-            if (output != null && base != null) {
-                File(File(output).parent, base + "_merged.mp4").delete()
-                File(File(output).parent, base + "_audio.m4a").delete()
+            val outputFile = output?.let { File(it) }
+            val dir = outputFile?.parentFile
+            // Same-video prefix: workBase is
+            // sanitizedTitle_videoId_<height>p — drop the trailing
+            // height segment, so stale intermediates from other
+            // heights/attempts of this video are swept too.
+            val sweepPrefix = if (dir != null && base != null) {
+                base.substringBeforeLast("_") + "_"
+            } else {
+                null
             }
-            setState { copy(originalDeleted = true, downloadedPath = null) }
+            if (dir != null && base != null && sweepPrefix != null) {
+                tryDelete(File(dir, base + "_merged.mp4"))
+                tryDelete(File(dir, base + "_audio.m4a"))
+                // Sweep: stale intermediates of the SAME video from other
+                // heights/attempts (e.g. 1080p tried, then 720p succeeded).
+                // The final output (Output<epoch>.mp4) never matches the
+                // prefix, but skip it explicitly anyway.
+                val outputAbs = outputFile?.absolutePath
+                dir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.name.startsWith(sweepPrefix) &&
+                        file.absolutePath != outputAbs
+                    ) {
+                        tryDelete(file)
+                    }
+                }
+            }
+            // Only claim deletion when nothing of this video remains.
+            val remaining = if (dir != null && sweepPrefix != null) {
+                val outputAbs = outputFile?.absolutePath
+                dir.listFiles()?.any { file ->
+                    file.isFile && file.name.startsWith(sweepPrefix) &&
+                        file.absolutePath != outputAbs
+                } ?: false
+            } else {
+                false
+            }
+            val summary = buildString {
+                append("Intermediate files deleted: ${deleted.size}.")
+                if (failed.isNotEmpty()) {
+                    append(" Delete nahi hui: ${failed.joinToString(", ")}")
+                }
+            }
+            onEvent(YoutubeDownloadEvent.LogReceived(summary))
+            setState {
+                copy(originalDeleted = failed.isEmpty() && !remaining, downloadedPath = null)
+            }
         }.start()
     }
 
