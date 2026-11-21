@@ -52,7 +52,7 @@
     <string name="extract_frame_from_video">Extract Frames from Video</string>
     <string name="h265_compress">Compress to H.265 (HEVC)</string>
     <string name="youtube_video_download">YouTube Video Download</string>
-    <string name="extract_audio_from_video">Extract audio from video</string>
+    <string name="extract_audio_from_video">Extract Audio From Video</string>
     <string name="cut_audio_from_video">Cut Audio From Video</string>
     <string name="extract_audio">Extract Audio</string>
     <string name="fast_slow_motion_video">Fast/Slow Motion Video</string>
@@ -66,7 +66,7 @@
     <string name="video_fade_in_and_fade_out">Video Fade In and Fade Out</string>
     <string name="video_to_gif">Video To GIF</string>
     <string name="convert_into_gif">Convert into GIF</string>
-    <string name="video_rotate">Video Rotate/Flip(Mirroring)</string>
+    <string name="video_rotate">Video Rotate/Flip (Mirroring)</string>
     <string name="rotate_90_degree">Rotate 90 Degree</string>
     <string name="rotate_180_degree">Rotate 180 Degree</string>
     <string name="rotate_270_degree">Rotate 270 Degree</string>
@@ -108,8 +108,8 @@
     <string name="change_audio_volume">Change Audio Volume</string>
     <string name="min_audio_selection_validation">Please select minimum 2 audio files</string>
     <string name="validation_of_audio">Please select audio</string>
-    <string name="fast_slow_audio_convert">Fast/Slow audio convert</string>
-    <string name="crop_audio_using_time">Crop audio using time</string>
+    <string name="fast_slow_audio_convert">Fast/Slow Audio Convert</string>
+    <string name="crop_audio_using_time">Crop Audio Using Time</string>
     <string name="compress_audio">Compress Audio</string>
     <string name="output_path">Output Path : \n%s</string>
     <string name="output_path_with_size" formatted="false">Output Path : \n%s Output file Size : \n%s</string>

@@ -67,6 +67,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The app ships no theme, so the platform default theme draws a
+        // system ActionBar ("Video-Image Editor") above the Compose
+        // TopAppBar, which shows the same title again. Hide the system
+        // one — the Compose TopAppBar is the app bar.
+        actionBar?.hide()
         // Lets the operation ViewModels start the background-encode
         // foreground service without holding an Activity reference.
         EncodeService.init(applicationContext)
