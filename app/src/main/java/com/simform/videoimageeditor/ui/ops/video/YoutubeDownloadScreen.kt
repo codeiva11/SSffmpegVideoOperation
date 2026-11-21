@@ -290,7 +290,7 @@ class YoutubeDownloadViewModel :
             if (stream.isVideoOnly) continue
             val height = stream.height
             if (height <= 0) continue
-            if (stream.format.suffix != "mp4") continue
+            if (stream.format?.suffix != "mp4") continue
             val url = stream.url
             if (url.isNullOrBlank()) continue
             val prev = byHeight[height]
@@ -308,7 +308,7 @@ class YoutubeDownloadViewModel :
             for (stream in info.videoOnlyStreams) {
                 val height = stream.height
                 if (height <= 0 || height in byHeight) continue
-                if (stream.format.suffix != "mp4") continue
+                if (stream.format?.suffix != "mp4") continue
                 val url = stream.url
                 if (url.isNullOrBlank()) continue
                 options += YoutubeQualityOption(
@@ -491,7 +491,7 @@ class YoutubeDownloadViewModel :
             connection.inputStream.use { input ->
                 FileOutputStream(dest, append).use { output ->
                     val buffer = ByteArray(64 * 1024)
-                    var read: Int
+                    var read = 0
                     while (!cancelled && input.read(buffer).also { read = it } != -1) {
                         output.write(buffer, 0, read)
                         downloaded += read
