@@ -231,15 +231,18 @@ fun HomeScreen(onOpen: (String) -> Unit) {
             // Searching: a tile shows only when it holds a match, and
             // it opens by itself to show the matching operations.
             // Not searching: tiles follow their saved open/closed state.
+            // (The title lookup is a @Composable call, so the filter
+            // is inline here — a local fun would need @Composable too.)
             val searching = query.isNotBlank()
-            fun matches(item: HomeItem): Boolean {
-                return searching &&
-                    stringResource(item.titleRes).contains(query, ignoreCase = true)
-            }
-            val youtubeVisible = !searching || matches(YOUTUBE_ITEM)
+            val youtubeVisible = !searching ||
+                stringResource(YOUTUBE_ITEM.titleRes)
+                    .contains(query, ignoreCase = true)
             val visibleTiles = TILES.mapNotNull { tile ->
                 val shown = if (searching) {
-                    tile.items.filter { matches(it) }
+                    tile.items.filter {
+                        stringResource(it.titleRes)
+                            .contains(query, ignoreCase = true)
+                    }
                 } else {
                     tile.items
                 }
