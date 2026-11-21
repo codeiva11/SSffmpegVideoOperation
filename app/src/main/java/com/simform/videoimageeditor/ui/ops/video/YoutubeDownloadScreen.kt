@@ -39,6 +39,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 /**
@@ -51,10 +52,13 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
  *
  * Flow: paste link -> extractor lists the video's formats -> pick a
  * resolution -> download -> convert. 720p and below come down as one
- * file with audio; 1080p and above are video-only DASH, so the best
- * audio stream downloads too and ffmpeg merges the two first
- * (video copied, audio to AAC 192k), then the H.265 convert runs
- * (libx265, audio copied — it is already AAC by then).
+ * file with audio; 1080p and above are video-only DASH, so the
+ * ORIGINAL-language audio stream downloads too (highest-bitrate
+ * ORIGINAL track; a dubbed track never wins on bitrate alone) and
+ * ffmpeg merges the two first (video copied, audio to AAC 192k),
+ * then the H.265 convert runs (libx265, audio copied — it is
+ * already AAC by then). 720p and below carry whatever audio
+ * YouTube puts in the combined file — no language choice there.
  *
  * Download and convert run under EncodeService (foreground + wake
  * lock), so they survive the screen turning off. Download resumes
@@ -74,7 +78,8 @@ data class YoutubeQualityOption(
     val videoUrl: String,
     val audioUrl: String?,
     val videoSuffix: String,
-    val bitrate: Int
+    val bitrate: Int,
+    val audioLabel: String? = null
 )
 
 enum class YoutubePhase {
@@ -306,9 +311,19 @@ class YoutubeDownloadViewModel :
             }
         }
         val options = byHeight.values.toMutableList()
-        val bestAudio = info.audioStreams
+        // Separate audio (1080p+): prefer the ORIGINAL-language track —
+        // a dubbed track can otherwise win on bitrate alone. Fall back
+        // to the highest-bitrate track when no ORIGINAL track exists.
+        // (StreamInfo.getLanguageInfo() is null for YouTube, so the
+        // track type itself is the reference.)
+        val audioCandidates = info.audioStreams
             .filter { !it.url.isNullOrBlank() }
+        val bestAudio = audioCandidates
+            .filter { it.audioTrackType == AudioTrackType.ORIGINAL }
             .maxByOrNull { it.averageBitrate }
+            ?: audioCandidates.maxByOrNull { it.averageBitrate }
+        val audioLabel = bestAudio?.audioTrackName?.takeIf { it.isNotBlank() }
+            ?: bestAudio?.audioLocale?.displayLanguage?.takeIf { it.isNotBlank() }
         if (bestAudio != null) {
             for (stream in info.videoOnlyStreams) {
                 val height = stream.height
@@ -317,7 +332,8 @@ class YoutubeDownloadViewModel :
                 val url = stream.url
                 if (url.isNullOrBlank()) continue
                 options += YoutubeQualityOption(
-                    "${height}p", height, url, bestAudio.url, "mp4", stream.bitrate
+                    "${height}p", height, url, bestAudio.url, "mp4", stream.bitrate,
+                    audioLabel = audioLabel
                 )
             }
         }
@@ -615,7 +631,11 @@ fun YoutubeDownloadScreen(
                         )
                         Text(
                             option.label + if (option.audioUrl != null) {
-                                " (video + audio, merged first)"
+                                if (option.audioLabel != null) {
+                                    " (audio: ${option.audioLabel}, merged first)"
+                                } else {
+                                    " (video + audio, merged first)"
+                                }
                             } else {
                                 ""
                             }
