@@ -74,6 +74,10 @@ object YoutubeDownloadRunner {
     @Volatile
     private var listener: Listener? = null
 
+    // java.net.HttpURLConnection has no named constant for 416
+    // ("Range Not Satisfiable").
+    private const val HTTP_RANGE_NOT_SATISFIABLE = 416
+
     @Volatile
     private var lastProgressPercent = -1
 
@@ -201,6 +205,9 @@ object YoutubeDownloadRunner {
      * request means the file is already complete, so it counts as
      * success — without this, resuming a fully downloaded file
      * would fail. Returns false on any failure or when cancelled.
+     *
+     * Note: java.net.HttpURLConnection has NO named constant for
+     * 416, so the literal is used here.
      */
     private fun downloadFile(url: String, dest: File): Boolean {
         lastProgressPercent = -1
@@ -219,7 +226,7 @@ object YoutubeDownloadRunner {
             }
             activeConnection = connection
             val code = connection.responseCode
-            if (code == HttpURLConnection.HTTP_REQUESTED_RANGE_NOT_SATISFIABLE && existing > 0) {
+            if (code == HTTP_RANGE_NOT_SATISFIABLE && existing > 0) {
                 // The file is already fully downloaded.
                 currentPercent = 100
                 currentDownloaded = existing
