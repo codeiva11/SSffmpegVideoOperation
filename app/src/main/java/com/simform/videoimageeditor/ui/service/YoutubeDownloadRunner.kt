@@ -32,6 +32,14 @@ import java.net.URL
  * after a process death — which is exactly how a re-opened screen
  * can tell a dead chain (resume the partial file) from a live one
  * (wait for it to finish).
+ *
+ * A failed file is retried once with a freshly fetched link (see
+ * downloadWithRefresh): YouTube stream URLs are time-limited, so
+ * retrying the same URL after it expired can never succeed. The
+ * retry resumes the SAME partial file — the fresh link only
+ * replaces the URL, never the file. The shown progress is reset at
+ * the start of each file, so the screen never shows the previous
+ * file's stale progress while the next file downloads or fails.
  */
 object YoutubeDownloadRunner {
 
@@ -47,7 +55,15 @@ object YoutubeDownloadRunner {
         val videoUrl: String,
         val audioUrl: String?,
         val videoFile: File,
-        val audioFile: File?
+        val audioFile: File?,
+        /**
+         * Re-fetches fresh stream URLs for the selected height, or
+         * null when the fresh links could not be fetched. Called at
+         * most once per file, only after that file's download failed
+         * — YouTube links are time-limited, so retrying the same URL
+         * after it expired can never succeed.
+         */
+        val refreshUrls: (() -> Pair<String, String?>?)? = null
     )
 
     @Volatile
@@ -73,6 +89,11 @@ object YoutubeDownloadRunner {
 
     @Volatile
     private var listener: Listener? = null
+
+    // Fresh-link provider for the running job (set in start(),
+    // cleared when the job ends). See downloadWithRefresh.
+    @Volatile
+    private var refreshUrls: (() -> Pair<String, String?>?)? = null
 
     // java.net.HttpURLConnection has no named constant for 416
     // ("Range Not Satisfiable").
@@ -107,6 +128,7 @@ object YoutubeDownloadRunner {
     fun start(params: Params, listener: Listener): Boolean {
         if (jobThread?.isAlive == true) return false
         this.listener = listener
+        this.refreshUrls = params.refreshUrls
         cancelled = false
         isRunning = true
         lastProgressPercent = -1
@@ -117,13 +139,14 @@ object YoutubeDownloadRunner {
         val thread = Thread {
             try {
                 listener.onLog("Downloading video…")
-                if (!downloadFile(params.videoUrl, params.videoFile)) {
+                if (!downloadWithRefresh(FileKind.VIDEO, params.videoUrl, params.videoFile)) {
                     if (cancelled) {
                         listener.onCancelled()
                     } else {
                         listener.onFailed(
-                            "Download beech me ruk gaya — dobara try karo, " +
-                                "download wahin se resume hoga"
+                            "Video download ruk gaya — network ya link problem " +
+                                "ho sakta hai. 'Get video details' dabakar " +
+                                "fresh link lekar dobara try karo."
                         )
                     }
                     return@Thread
@@ -141,13 +164,14 @@ object YoutubeDownloadRunner {
                     }
                     listener.onLog("Downloading audio…")
                     currentLog = "Downloading audio…"
-                    if (!downloadFile(params.audioUrl, audioFile)) {
+                    if (!downloadWithRefresh(FileKind.AUDIO, params.audioUrl, audioFile)) {
                         if (cancelled) {
                             listener.onCancelled()
                         } else {
                             listener.onFailed(
-                                "Audio download beech me ruk gaya — dobara try karo, " +
-                                    "download wahin se resume hoga"
+                                "Audio download ruk gaya — network ya link problem " +
+                                    "ho sakta hai. 'Get video details' dabakar " +
+                                    "fresh link lekar dobara try karo."
                             )
                         }
                         return@Thread
@@ -163,6 +187,7 @@ object YoutubeDownloadRunner {
                 activeConnection = null
                 isRunning = false
                 this.listener = null
+                this.refreshUrls = null
             }
         }
         jobThread = thread
@@ -198,6 +223,36 @@ object YoutubeDownloadRunner {
         }
     }
 
+    private enum class FileKind { VIDEO, AUDIO }
+
+    /**
+     * Downloads one file, and when that fails, fetches a fresh link
+     * ONCE and resumes the SAME partial file with it. YouTube stream
+     * URLs are time-limited — retrying an expired URL can never
+     * succeed, so a plain retry would fail forever. At most one
+     * refresh per file, so a persistently broken link fails cleanly
+     * instead of looping. Returns false when both attempts fail or
+     * the job was cancelled.
+     */
+    private fun downloadWithRefresh(kind: FileKind, url: String, dest: File): Boolean {
+        if (downloadFile(url, dest)) return true
+        if (cancelled) return false
+        val provider = refreshUrls ?: return false
+        listener?.onLog("Getting fresh link…")
+        currentLog = "Getting fresh link…"
+        val fresh = try {
+            val urls = provider()
+            if (kind == FileKind.VIDEO) urls?.first else urls?.second
+        } catch (_: Exception) {
+            null
+        }
+        if (fresh.isNullOrBlank() || cancelled) return false
+        val resuming = if (kind == FileKind.VIDEO) "Resuming video…" else "Resuming audio…"
+        listener?.onLog(resuming)
+        currentLog = resuming
+        return downloadFile(fresh, dest)
+    }
+
     /**
      * Resumable download: an interrupted file continues with a Range
      * header where it stopped; when the server ignores Range (plain
@@ -211,6 +266,13 @@ object YoutubeDownloadRunner {
      */
     private fun downloadFile(url: String, dest: File): Boolean {
         lastProgressPercent = -1
+        // A new file starts at 0 — without this, the screen keeps
+        // showing the previous file's progress (e.g. the video's
+        // 96%) while the next file downloads or fails.
+        currentPercent = 0
+        currentDownloaded = 0L
+        currentTotal = 0L
+        listener?.onProgress(0, 0, 0)
         var connection: HttpURLConnection? = null
         try {
             val existing = if (dest.exists()) dest.length() else 0L

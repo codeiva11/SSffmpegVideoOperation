@@ -76,7 +76,11 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
  * interrupted, and the work file is named from the video (title +
  * video id + height), never a timestamp — so re-tapping Download
  * for the same video + quality continues the same partial file
- * instead of starting over. The in-progress job (video, height,
+ * instead of starting over. YouTube's stream links are
+ * time-limited, so when a download fails the runner fetches a
+ * fresh link once per file and resumes the same partial file with
+ * it; a failure after that is reported plainly, without promising
+ * a resume. The in-progress job (video, height,
  * quality) is also saved, so re-opening this screen after the
  * process died offers the same resume. "Together" here means one
  * automatic flow, not a live pipe: piping a live download into the
@@ -453,12 +457,38 @@ class YoutubeDownloadViewModel :
         val videoFile = File(dir, base + "_original." + option.videoSuffix)
         val audioFile =
             if (option.audioUrl != null) File(dir, base + "_audio.m4a") else null
+        // Fresh links for the runner's one-time retry: re-fetch the
+        // formats for the same video and pick the option for the
+        // height this job is downloading. Captures the page URL and
+        // height at tap time, so a quality change mid-download
+        // cannot switch the retry to another height.
+        val pageUrl = state.value.url.trim()
+        val jobHeight = option.height
+        val refreshUrls: () -> Pair<String, String?>? = {
+            try {
+                ensureNewPipeInit()
+                val info = StreamInfo.getInfo(ServiceList.YouTube, pageUrl)
+                val freshOptions = buildOptions(info)
+                val fresh = freshOptions.firstOrNull { it.height == jobHeight }
+                if (fresh == null) {
+                    null
+                } else {
+                    // Keep the screen on the fresh links, so a later
+                    // manual retry also uses them.
+                    setState { copy(options = freshOptions, selected = fresh) }
+                    fresh.videoUrl to fresh.audioUrl
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
         if (!YoutubeDownloadRunner.start(
                 YoutubeDownloadRunner.Params(
                     option.videoUrl,
                     option.audioUrl,
                     videoFile,
-                    audioFile
+                    audioFile,
+                    refreshUrls
                 ),
                 downloadListener()
             )
