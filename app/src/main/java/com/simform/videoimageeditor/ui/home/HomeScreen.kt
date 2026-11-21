@@ -116,7 +116,7 @@ private data class HomeTile(
  */
 private val YOUTUBE_ITEM = HomeItem(
     R.string.youtube_video_download, Icons.Filled.Download,
-    Routes.YOUTUBE_DOWNLOAD, "Download & convert to H.265 in one tap"
+    Routes.YOUTUBE_DOWNLOAD, "Download & convert to H.265"
 )
 
 private val TILES = listOf(
@@ -294,7 +294,11 @@ fun HomeScreen(onOpen: (String) -> Unit) {
     }
 }
 
-/** YouTube Video Download: standalone hero tile, always first. */
+/** YouTube Video Download: standalone hero tile, always first.
+ * Its row uses the exact same metrics as a group tile's header row
+ * (12dp vertical padding, 40dp icon circle, titleMedium title,
+ * single-line title + subtitle), so it is the same height as the
+ * other tiles — only the teal background sets it apart. */
 @Composable
 private fun YoutubeHeroTile(onClick: () -> Unit) {
     Card(
@@ -310,12 +314,12 @@ private fun YoutubeHeroTile(onClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center
@@ -324,21 +328,25 @@ private fun YoutubeHeroTile(onClick: () -> Unit) {
                     imageVector = Icons.Filled.Download,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     text = stringResource(YOUTUBE_ITEM.titleRes),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 YOUTUBE_ITEM.subtitle?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.85f)
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
