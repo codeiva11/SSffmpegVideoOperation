@@ -19,14 +19,14 @@ task clean(type: Delete) {
 // FFmpeg 9.1 engine: ffmpeg-kit-next 9.1.0 universal AAR, built from source
 // in codeiva11/ffmpeg-kit-next (release v9.1.0, FFmpeg 9.1 "Gauss").
 // The AAR is 110 MB - too big to commit to this repo - so it is downloaded
-// at build time (CI and local) and verified against its published SHA-256.
-// Once downloaded it is reused; delete libs/ to force a fresh download.
+// at build time (CI and local), verified against its published SHA-256, and
+// installed into a local Maven repo (maven-repo/) with its POM. A Maven
+// coordinate is required: a library module cannot take a direct local .aar
+// file dependency (AGP refuses to bundle its own AAR in that case).
+// Once downloaded it is reused; delete maven-repo/ to force a fresh download.
 def ffmpegKitNextAarUrl = 'https://github.com/codeiva11/ffmpeg-kit-next/releases/download/v9.1.0/ffmpeg-kit-next-9.1.0-universal.aar'
 def ffmpegKitNextAarSha256 = 'ae139746e69e6c3302cf5786f1fb0e16b76643c578b43e4205ac5ad2ea6f7f28'
-def ffmpegKitNextAarFile = 'libs/ffmpeg-kit-next-9.1.0-universal.aar'
-ext.ffmpegKitNextAarUrl = ffmpegKitNextAarUrl
-ext.ffmpegKitNextAarSha256 = ffmpegKitNextAarSha256
-ext.ffmpegKitNextAarFile = ffmpegKitNextAarFile
+def ffmpegKitNextAarRepoDir = 'maven-repo/com/arthenica/ffmpeg-kit-next/9.1.0'
 
 def ffmpegKitNextAarSha256Of(File f) {
     def digest = java.security.MessageDigest.getInstance('SHA-256')
@@ -39,26 +39,54 @@ def ffmpegKitNextAarSha256Of(File f) {
 }
 
 tasks.register('downloadFfmpegKitAar') {
-    def aarFile = rootProject.file(ffmpegKitNextAarFile)
+    def repoDir = rootProject.file(ffmpegKitNextAarRepoDir)
+    def aarFile = new File(repoDir, 'ffmpeg-kit-next-9.1.0.aar')
+    def pomFile = new File(repoDir, 'ffmpeg-kit-next-9.1.0.pom')
     doLast {
-        if (aarFile.exists() && ffmpegKitNextAarSha256Of(aarFile) == ffmpegKitNextAarSha256) {
-            logger.lifecycle("ffmpeg-kit-next AAR already present and verified: ${aarFile}")
-            return
-        }
-        aarFile.parentFile.mkdirs()
-        logger.lifecycle("Downloading ffmpeg-kit-next 9.1.0 universal AAR (110 MB) from ${ffmpegKitNextAarUrl} ...")
-        new URL(ffmpegKitNextAarUrl).withInputStream { input ->
-            aarFile.withOutputStream { output ->
-                byte[] buf = new byte[8192]
-                int n
-                while ((n = input.read(buf)) != -1) { output.write(buf, 0, n) }
+        repoDir.mkdirs()
+        if (!aarFile.exists() || ffmpegKitNextAarSha256Of(aarFile) != ffmpegKitNextAarSha256) {
+            logger.lifecycle("Downloading ffmpeg-kit-next 9.1.0 universal AAR (110 MB) from ${ffmpegKitNextAarUrl} ...")
+            new URL(ffmpegKitNextAarUrl).withInputStream { input ->
+                aarFile.withOutputStream { output ->
+                    byte[] buf = new byte[8192]
+                    int n
+                    while ((n = input.read(buf)) != -1) { output.write(buf, 0, n) }
+                }
+            }
+            def actual = ffmpegKitNextAarSha256Of(aarFile)
+            if (actual != ffmpegKitNextAarSha256) {
+                aarFile.delete()
+                throw new GradleException("ffmpeg-kit-next AAR SHA-256 mismatch: expected ${ffmpegKitNextAarSha256}, got ${actual}")
             }
         }
-        def actual = ffmpegKitNextAarSha256Of(aarFile)
-        if (actual != ffmpegKitNextAarSha256) {
-            aarFile.delete()
-            throw new GradleException("ffmpeg-kit-next AAR SHA-256 mismatch: expected ${ffmpegKitNextAarSha256}, got ${actual}")
-        }
-        logger.lifecycle("ffmpeg-kit-next AAR verified: ${aarFile} (${aarFile.length()} bytes)")
+        pomFile.text = '''<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.arthenica</groupId>
+  <artifactId>ffmpeg-kit-next</artifactId>
+  <version>9.1.0</version>
+  <packaging>aar</packaging>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.arthenica</groupId>
+      <artifactId>smart-exception-java</artifactId>
+      <version>0.2.1</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-stdlib</artifactId>
+      <version>2.0.21</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+</project>
+'''
+        logger.lifecycle("ffmpeg-kit-next AAR ready: ${aarFile} (${aarFile.length()} bytes)")
     }
 }

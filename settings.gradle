@@ -18,6 +18,9 @@ dependencyResolutionManagement {
         maven { url "https://maven-central.storage-download.googleapis.com/maven2" }
         // JitPack: NewPipeExtractor is published here, not on Maven Central.
         maven { url "https://jitpack.io" }
+        // Local Maven repo for ffmpeg-kit-next 9.1.0 (see root build.gradle):
+        // the universal AAR + its POM are installed here at build time.
+        maven { url uri("maven-repo") }
     }
 }
 rootProject.name = "FFMPEG Video Operation"

@@ -57,14 +57,16 @@ dependencies {
     // as the old full-gpl flavour: libx265 (H.265/HEVC) and libx264 are
     // GPL-licensed and included. Consequence: an app shipping this library
     // is GPL-licensed. The universal AAR (110 MB, all 4 ABIs) is downloaded
-    // at build time by the downloadFfmpegKitAar task (see root build.gradle)
-    // and verified by SHA-256 - it is not committed to this repo.
+    // at build time by the downloadFfmpegKitAar task (see root build.gradle),
+    // verified by SHA-256, and installed into the local Maven repo - it is
+    // not committed to this repo.
     // Query builders in this module use only the Kotlin stdlib and are KMP-ready;
     // only the runner (CallBackOfQuery) touches this Android-only dependency.
-    implementation files(rootProject.file(rootProject.ext.ffmpegKitNextAarFile))
-    // Transitive dep of the AAR (declared in its POM): file dependencies
-    // carry no transitive deps, so it is declared explicitly.
-    implementation 'com.arthenica:smart-exception-java:0.2.1'
+    // Maven coordinate from the local repo (see settings.gradle): the AAR
+    // plus its POM, whose runtime deps (smart-exception-java, kotlin-stdlib)
+    // resolve transitively. A direct local .aar file dependency is NOT
+    // allowed here - AGP refuses to bundle a library AAR that has one.
+    implementation 'com.arthenica:ffmpeg-kit-next:9.1.0'
 }
 
 // Download the ffmpeg-kit-next AAR before compiling (no-op when already present and verified).
