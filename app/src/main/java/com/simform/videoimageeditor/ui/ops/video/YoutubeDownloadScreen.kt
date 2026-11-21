@@ -618,7 +618,10 @@ fun YoutubeDownloadScreen(
             }
             Text("H.265 quality:", style = MaterialTheme.typography.labelLarge)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                H265Quality.entries.forEach { quality ->
+                // Downloader order is Fast first: CRF 28, then 26, then 24.
+                // (The H.265 compress screen keeps its own Best-first order.)
+                listOf(H265Quality.FAST, H265Quality.BALANCED, H265Quality.BEST)
+                    .forEach { quality ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
