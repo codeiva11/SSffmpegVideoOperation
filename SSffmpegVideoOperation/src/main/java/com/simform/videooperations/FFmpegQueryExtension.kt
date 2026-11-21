@@ -374,8 +374,8 @@ public class FFmpegQueryExtension {
                     inputPath
                 )
             )
-            if (!ReturnCode.isSuccess(session.returnCode)) return null
-            session.output?.trim()?.toIntOrNull()?.let { it / 1000 }
+            if (!ReturnCode.isSuccess(session.getReturnCode())) return null
+            session.getOutput()?.trim()?.toIntOrNull()?.let { it / 1000 }
         } catch (_: Exception) {
             null
         }
@@ -396,7 +396,7 @@ public class FFmpegQueryExtension {
                     inputPath
                 )
             )
-            ReturnCode.isSuccess(session.returnCode) && !session.output.isNullOrBlank()
+            ReturnCode.isSuccess(session.getReturnCode()) && !session.getOutput().isNullOrBlank()
         } catch (_: Exception) {
             false
         }

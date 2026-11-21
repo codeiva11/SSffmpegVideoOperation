@@ -11,7 +11,7 @@ import java.util.concurrent.CyclicBarrier
  * Runs an FFmpeg command on a background thread and reports progress,
  * statistics and the result on the main thread through [FFmpegCallBack].
  *
- * Engine: ffmpeg-kit 6.0 (maintained successor of mobile-ffmpeg 4.4).
+ * Engine: ffmpeg-kit-next 9.1.0 (FFmpeg 9.1 "Gauss").
  */
 class CallBackOfQuery {
     fun callQuery(query: Array<String>, fFmpegCallBack: FFmpegCallBack) {
@@ -63,12 +63,12 @@ class CallBackOfQuery {
         }
         val session = FFmpegKit.executeWithArguments(query)
         when {
-            ReturnCode.isSuccess(session.returnCode) -> {
+            ReturnCode.isSuccess(session.getReturnCode()) -> {
                 processHandler.post {
                     ffmpegCallBack.success()
                 }
             }
-            ReturnCode.isCancel(session.returnCode) -> {
+            ReturnCode.isCancel(session.getReturnCode()) -> {
                 processHandler.post {
                     ffmpegCallBack.cancel()
                     FFmpegKit.cancel()
