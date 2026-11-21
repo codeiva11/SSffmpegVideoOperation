@@ -52,11 +52,20 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    // FFmpeg engine: ffmpeg-kit-full-gpl 6.0.LTS (maintained successor of
-    // mobile-ffmpeg 4.4). The -gpl variant is required for libx265 (H.265/HEVC)
-    // and libx264: both are GPL-licensed and absent from the plain full
-    // package. Consequence: an app shipping this library is GPL-licensed.
+    // FFmpeg engine: ffmpeg-kit-next 9.1.0 (FFmpeg 9.1 "Gauss"), built from
+    // source in codeiva11/ffmpeg-kit-next (release v9.1.0). Same GPL coverage
+    // as the old full-gpl flavour: libx265 (H.265/HEVC) and libx264 are
+    // GPL-licensed and included. Consequence: an app shipping this library
+    // is GPL-licensed. The universal AAR (110 MB, all 4 ABIs) is downloaded
+    // at build time by the downloadFfmpegKitAar task (see root build.gradle)
+    // and verified by SHA-256 - it is not committed to this repo.
     // Query builders in this module use only the Kotlin stdlib and are KMP-ready;
     // only the runner (CallBackOfQuery) touches this Android-only dependency.
-    implementation 'com.arthenica:ffmpeg-kit-full-gpl:6.0.LTS'
+    implementation files(rootProject.file(rootProject.ext.ffmpegKitNextAarFile))
+    // Transitive dep of the AAR (declared in its POM): file dependencies
+    // carry no transitive deps, so it is declared explicitly.
+    implementation 'com.arthenica:smart-exception-java:0.2.1'
 }
+
+// Download the ffmpeg-kit-next AAR before compiling (no-op when already present and verified).
+tasks.named('preBuild').configure { dependsOn(rootProject.tasks.named('downloadFfmpegKitAar')) }

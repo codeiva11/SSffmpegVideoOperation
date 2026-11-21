@@ -71,12 +71,20 @@ dependencies {
     implementation 'io.coil-kt.coil3:coil-gif:3.0.4'
     implementation project(':SSffmpegVideoOperation')
     // EncodeService calls FFmpegKit.cancel() directly for its notification
-    // Cancel action. The library declares ffmpeg-kit as implementation
+    // Cancel action. The library declares ffmpeg-kit-next as implementation
     // (not visible here), so the app needs the same dependency itself.
-    implementation 'com.arthenica:ffmpeg-kit-full-gpl:6.0.LTS'
+    // FFmpeg 9.1 via the universal AAR downloaded at build time by the
+    // downloadFfmpegKitAar task (see root build.gradle), verified by SHA-256.
+    implementation files(rootProject.file(rootProject.ext.ffmpegKitNextAarFile))
+    // Transitive dep of the AAR (declared in its POM): file dependencies
+    // carry no transitive deps, so it is declared explicitly.
+    implementation 'com.arthenica:smart-exception-java:0.2.1'
     // NewPipe Extractor (YouTube download): pure-JVM library, no login,
     // no YouTube API, no Play Services. NOT on Maven Central — it is
     // published through JitPack (see settings.gradle). GPLv3, same as
     // the ffmpeg-kit-full-gpl the app already uses.
     implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.27.1'
 }
+
+// Download the ffmpeg-kit-next AAR before compiling (no-op when already present and verified).
+tasks.named('preBuild').configure { dependsOn(rootProject.tasks.named('downloadFfmpegKitAar')) }
