@@ -16,6 +16,8 @@ dependencyResolutionManagement {
         // Central search index still lists ffmpeg-kit-full 6.0.LTS. The mirror keeps
         // the build working when Central's file hosts are down.
         maven { url "https://maven-central.storage-download.googleapis.com/maven2" }
+        // JitPack: NewPipeExtractor is published here, not on Maven Central.
+        maven { url "https://jitpack.io" }
     }
 }
 rootProject.name = "FFMPEG Video Operation"

@@ -51,6 +51,7 @@
     <string name="extract_frames">Extract Frames</string>
     <string name="extract_frame_from_video">Extract Frames from Video</string>
     <string name="h265_compress">Compress to H.265 (HEVC)</string>
+    <string name="youtube_video_download">YouTube Video Download</string>
     <string name="extract_audio_from_video">Extract audio from video</string>
     <string name="cut_audio_from_video">Cut Audio From Video</string>
     <string name="extract_audio">Extract Audio</string>

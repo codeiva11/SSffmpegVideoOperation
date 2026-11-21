@@ -74,4 +74,9 @@ dependencies {
     // Cancel action. The library declares ffmpeg-kit as implementation
     // (not visible here), so the app needs the same dependency itself.
     implementation 'com.arthenica:ffmpeg-kit-full-gpl:6.0.LTS'
+    // NewPipe Extractor (YouTube download): pure-JVM library, no login,
+    // no YouTube API, no Play Services. NOT on Maven Central — it is
+    // published through JitPack (see settings.gradle). GPLv3, same as
+    // the ffmpeg-kit-full-gpl the app already uses.
+    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.27.1'
 }

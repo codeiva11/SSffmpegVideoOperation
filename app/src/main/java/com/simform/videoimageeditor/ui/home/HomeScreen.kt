@@ -66,7 +66,8 @@ private val ALL_OPERATIONS = listOf(
     HomeItem(R.string.change_audio_volume, Routes.CHANGE_AUDIO_VOLUME),
     HomeItem(R.string.fast_slow_audio_convert, Routes.FAST_SLOW_AUDIO),
     HomeItem(R.string.crop_audio_using_time, Routes.CROP_AUDIO),
-    HomeItem(R.string.compress_audio, Routes.COMPRESS_AUDIO)
+    HomeItem(R.string.compress_audio, Routes.COMPRESS_AUDIO),
+    HomeItem(R.string.youtube_video_download, Routes.YOUTUBE_DOWNLOAD)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

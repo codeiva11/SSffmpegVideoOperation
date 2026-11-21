@@ -313,6 +313,52 @@ public class FFmpegQueryExtension {
     }
 
     /**
+     * Mux a video-only file with a separate audio file into one MP4.
+     * Used by the YouTube download: 1080p and above come down as
+     * video-only DASH plus a separate audio stream. Video is copied
+     * untouched; audio is re-encoded to AAC 192k (the app's fallback
+     * bitrate) so any source format (m4a, webm/opus) lands in a plain
+     * MP4. -shortest trims a slightly longer audio tail.
+     */
+    fun muxVideoAudio(video: String, audio: String, output: String): Array<String> {
+        return arrayOf(
+            "-y", "-i", video, "-i", audio,
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192k",
+            "-shortest", output
+        )
+    }
+
+    /**
+     * Convert any video to H.265, copying AAC audio untouched — no
+     * generation loss, no wasted encode time. Use when the input audio
+     * is already AAC: YouTube MP4/M4A downloads and the mux step
+     * above. Mirrors compressH265 except the audio track is copied,
+     * not re-encoded to AAC.
+     */
+    fun convertToH265(
+        inputVideo: String,
+        output: String,
+        crf: Int = 28,
+        preset: String = "auto"
+    ): Array<String> {
+        val args = mutableListOf(
+            "-y", "-i", inputVideo,
+            "-c:v", "libx265",
+            "-crf", crf.toString(),
+            "-tag:v", "hvc1"
+        )
+        if (!preset.equals("auto", ignoreCase = true)) {
+            args.add("-preset")
+            args.add(preset)
+        }
+        args.add("-c:a")
+        args.add("copy")
+        args.add(output)
+        return args.toTypedArray()
+    }
+
+    /**
      * First audio stream bitrate in kbps, or null when the input has no
      * audio stream, the bitrate is not recorded, or the probe fails.
      * Blocking — call only off the main thread.

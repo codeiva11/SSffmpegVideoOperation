@@ -33,6 +33,7 @@ import com.simform.videoimageeditor.ui.ops.video.RemoveAudioScreen
 import com.simform.videoimageeditor.ui.ops.video.ReverseVideoScreen
 import com.simform.videoimageeditor.ui.ops.video.RotateFlipScreen
 import com.simform.videoimageeditor.ui.ops.video.VideoToGifScreen
+import com.simform.videoimageeditor.ui.ops.video.YoutubeDownloadScreen
 
 /**
  * One route per screen — all 27 operations, plus home (which lists them
@@ -67,6 +68,7 @@ object Routes {
     const val FAST_SLOW_AUDIO = "fast_slow_audio"
     const val CROP_AUDIO = "crop_audio"
     const val COMPRESS_AUDIO = "compress_audio"
+    const val YOUTUBE_DOWNLOAD = "youtube_download"
 }
 
 @Composable
@@ -103,5 +105,6 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable(Routes.FAST_SLOW_AUDIO) { FastSlowAudioScreen(onBack = back) }
         composable(Routes.CROP_AUDIO) { CropAudioScreen(onBack = back) }
         composable(Routes.COMPRESS_AUDIO) { CompressAudioScreen(onBack = back) }
+        composable(Routes.YOUTUBE_DOWNLOAD) { YoutubeDownloadScreen(onBack = back) }
     }
 }
