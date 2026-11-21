@@ -25,7 +25,7 @@ task clean(type: Delete) {
 // file dependency (AGP refuses to bundle its own AAR in that case).
 // Once downloaded it is reused; delete maven-repo/ to force a fresh download.
 def ffmpegKitNextAarUrl = 'https://github.com/codeiva11/ffmpeg-kit-next/releases/download/v9.1.0/ffmpeg-kit-next-9.1.0-universal.aar'
-def ffmpegKitNextAarSha256 = 'ae139746e69e6c3302cf5786f1fb0e16b76643c578b43e4205ac5ad2ea6f7f28'
+def ffmpegKitNextAarSha256 = '0acb0e77282ee5764dd0a84d3f1a35c280920798980931edb7d8ab9714184ab2'
 def ffmpegKitNextAarRepoDir = 'maven-repo/com/arthenica/ffmpeg-kit-next/9.1.0'
 
 def ffmpegKitNextAarSha256Of(File f) {
