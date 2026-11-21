@@ -40,6 +40,7 @@ private data class HomeItem(@StringRes val titleRes: Int, val route: String)
  * H.265 HEVC is the compression now).
  */
 private val ALL_OPERATIONS = listOf(
+    HomeItem(R.string.youtube_video_download, Routes.YOUTUBE_DOWNLOAD),
     HomeItem(R.string.cut_video_using_time, Routes.CUT_VIDEO),
     HomeItem(R.string.image_to_video, Routes.IMAGE_TO_VIDEO),
     HomeItem(R.string.add_water_mark_on_video, Routes.ADD_WATERMARK),
@@ -66,8 +67,7 @@ private val ALL_OPERATIONS = listOf(
     HomeItem(R.string.change_audio_volume, Routes.CHANGE_AUDIO_VOLUME),
     HomeItem(R.string.fast_slow_audio_convert, Routes.FAST_SLOW_AUDIO),
     HomeItem(R.string.crop_audio_using_time, Routes.CROP_AUDIO),
-    HomeItem(R.string.compress_audio, Routes.COMPRESS_AUDIO),
-    HomeItem(R.string.youtube_video_download, Routes.YOUTUBE_DOWNLOAD)
+    HomeItem(R.string.compress_audio, Routes.COMPRESS_AUDIO)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
